@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.suo
+*.user
+
+# Kalora specific (if any)

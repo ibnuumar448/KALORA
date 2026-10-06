@@ -112,7 +112,7 @@ function AssessmentsTab() {
 
   const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      quiz: 'bg-blue-100 text-blue-700',
+      quiz: 'bg-emerald-100 text-primary-hover',
       mock: 'bg-purple-100 text-purple-700',
       final: 'bg-red-100 text-red-700',
       entry: 'bg-green-100 text-green-700',
@@ -271,7 +271,7 @@ function QuestionBankTab() {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {questions.map(q => (
-                <tr key={q.id} className={selectedIds.has(q.id) ? "bg-blue-50" : ""}>
+                <tr key={q.id} className={selectedIds.has(q.id) ? "bg-primary-light" : ""}>
                   <td className="px-4 py-4">
                     <input 
                       type="checkbox" 
@@ -368,7 +368,7 @@ function MakeupRequestsTab() {
                      </td>
                      <td className="px-6 py-4">
                        {r.status === 'pending' && (
-                         <Button size="sm" variant="outline" className="text-blue-600" onClick={() => setActiveRequest(r)}>Review</Button>
+                         <Button size="sm" variant="outline" className="text-primary" onClick={() => setActiveRequest(r)}>Review</Button>
                        )}
                      </td>
                    </tr>
@@ -445,7 +445,7 @@ function ResultsTab() {
           </div>
           <div className="flex items-center gap-4">
             <select
-              className="px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+              className="px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
               value={selectedId}
               onChange={e => setSelectedId(e.target.value)}
             >

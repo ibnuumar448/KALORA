@@ -109,7 +109,7 @@ export function BulkUploadModal({ open, onOpenChange, onSuccess }: BulkUploadMod
           </div>
           
           {preview.length > 0 && (
-            <div className="text-sm text-blue-700 bg-blue-50 p-3 rounded border border-blue-100">
+            <div className="text-sm text-primary-hover bg-primary-light p-3 rounded border border-blue-100">
               Successfully parsed <strong>{preview.length}</strong> questions from file.
             </div>
           )}

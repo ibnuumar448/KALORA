@@ -81,7 +81,7 @@ export default function StepDocuments({ data, onNext, onBack }: any) {
         ) : (
           <>
             {isUp ? (
-              <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
+              <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
             ) : (
               <UploadCloud className="w-10 h-10 text-slate-400 mb-4" />
             )}

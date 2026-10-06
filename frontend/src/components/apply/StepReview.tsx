@@ -26,9 +26,9 @@ export default function StepReview({ data, onSubmit, onBack, isSubmitting }: any
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+      <div className="bg-primary-light p-4 rounded-lg border border-blue-200">
         <h4 className="font-semibold text-blue-800 mb-2">Ready to Submit?</h4>
-        <p className="text-sm text-blue-700">
+        <p className="text-sm text-primary-hover">
           Please review your information carefully. You can still return to edit your application later, provided the admissions team hasn't processed it yet.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function StepReview({ data, onSubmit, onBack, isSubmitting }: any
               {data.olevel_results.subjects?.map((s: any, i: number) => (
                 <div key={i} className="bg-slate-100 px-3 py-2 rounded text-xs flex justify-between">
                   <span className="font-semibold">{s.subject}</span>
-                  <span className="text-blue-700 font-bold">{s.grade}</span>
+                  <span className="text-primary-hover font-bold">{s.grade}</span>
                 </div>
               ))}
             </div>

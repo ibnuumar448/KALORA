@@ -128,7 +128,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                         {ol.subjects?.map((s: any, i: number) => (
                           <div key={i} className="bg-white px-3 py-2 border rounded text-xs flex justify-between">
                             <span className="font-medium">{s.subject}</span>
-                            <span className="text-blue-700 font-bold">{s.grade}</span>
+                            <span className="text-primary-hover font-bold">{s.grade}</span>
                           </div>
                         ))}
                       </div>
@@ -196,7 +196,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
                     ${app.status === 'accepted' ? 'bg-green-100 text-green-800' : ''}
                     ${app.status === 'applied' || app.status === 'draft' ? 'bg-yellow-100 text-yellow-800' : ''}
                     ${app.status === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-                    ${app.status === 'submitted' ? 'bg-blue-100 text-blue-800' : ''}
+                    ${app.status === 'submitted' ? 'bg-emerald-100 text-blue-800' : ''}
                     ${app.status === 'under_review' ? 'bg-purple-100 text-purple-800' : ''}
                     ${app.status === 'waitlisted' ? 'bg-orange-100 text-orange-800' : ''}
                 `}>

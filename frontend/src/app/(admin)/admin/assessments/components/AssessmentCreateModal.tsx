@@ -209,9 +209,9 @@ export function AssessmentCreateModal({ open, onOpenChange, onSuccess }: Assessm
                 })}
               </div>
 
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-lg flex justify-between items-center">
-                <span className="font-semibold text-blue-900">Total Assessment Questions:</span>
-                <span className="text-xl font-bold text-blue-700">{totalQuestions}</span>
+              <div className="mt-4 p-4 bg-primary-light border border-blue-100 rounded-lg flex justify-between items-center">
+                <span className="font-semibold text-emerald-900">Total Assessment Questions:</span>
+                <span className="text-xl font-bold text-primary-hover">{totalQuestions}</span>
               </div>
             </div>
           )}

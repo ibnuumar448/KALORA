@@ -181,7 +181,7 @@ export default function AssessmentAttemptPage({ params }: { params: { id: string
                           value={optionValue}
                           checked={answers[question.id] === optionValue}
                           onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                          className="w-4 h-4 text-blue-600"
+                          className="w-4 h-4 text-primary"
                         />
                         <span className="text-sm text-slate-700">{optionLabel}</span>
                       </label>

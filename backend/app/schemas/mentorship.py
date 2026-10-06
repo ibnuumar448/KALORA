@@ -86,3 +86,47 @@ class MentorNoteResponse(BaseModel):
     created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
+
+class StudentMentorResponse(BaseModel):
+    assignment_id: UUID
+    mentor_id: UUID
+    mentor_name: str
+    assigned_at: datetime
+    status: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class StudentMentorshipHistoryResponse(BaseModel):
+    current_mentor: Optional[StudentMentorResponse]
+    history: List[AssignmentHistoryResponse]
+
+class MentorshipMessageCreate(BaseModel):
+    content: str
+
+class MentorshipMessageResponse(BaseModel):
+    id: UUID
+    assignment_id: UUID
+    sender_id: UUID
+    sender_name: str
+    content: str
+    created_at: datetime
+    read_at: Optional[datetime]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class SupportRequestCreate(BaseModel):
+    category: str
+    message: str
+
+class SupportRequestResponse(BaseModel):
+    id: UUID
+    assignment_id: UUID
+    student_id: UUID
+    student_name: str
+    category: str
+    message: str
+    status: str
+    created_at: datetime
+    resolved_at: Optional[datetime]
+
+    model_config = ConfigDict(from_attributes=True)

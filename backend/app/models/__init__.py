@@ -7,3 +7,4 @@ from app.models.assessment import QuestionBank, Assessment, AssessmentQuestion, 
 from app.models.progress import ProgressRecord, TopicMastery
 from app.models.mentorship import MentorAssignment, MentorNote
 from app.models.discipline import Default, Warning, Suspension, RiskFlag
+from app.models.notification import Notification

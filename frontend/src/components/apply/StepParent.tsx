@@ -19,7 +19,7 @@ export default function StepParent({ data, onNext, onBack }: any) {
 
   return (
     <form onSubmit={handleSubmit(onNext)} className="space-y-6">
-      <div className="bg-blue-50 border border-blue-100 p-4 rounded-md mb-6">
+      <div className="bg-primary-light border border-blue-100 p-4 rounded-md mb-6">
         <p className="text-sm text-blue-800">
           We collect this information to contact your parent or guardian regarding your application and progress.
         </p>

@@ -60,7 +60,7 @@ export default function StepProgramme({ data, onNext, onBack }: any) {
                           field.onChange(field.value.filter((val: string) => val !== subject));
                         }
                       }}
-                      className="w-4 h-4 text-blue-600 rounded"
+                      className="w-4 h-4 text-primary rounded"
                     />
                     <span className="text-sm font-medium">{subject}</span>
                   </label>

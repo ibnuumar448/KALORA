@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from app.models.admission import Application, ApplicationStatusHistory, ApplicationStatus, AdmissionNumberConfig, AdmissionNumber, DocumentType, ApplicationDocument, OLevelResult, OLevelSubjectResult, OLevelExamType
 from app.schemas.admission import ApplicationCreate, ApplicationUpdate, ApplicationSubmit, ApplicationStatusUpdate
+from app.models.rbac import Role, UserRole
 from sqlalchemy import func
 from app.services.storage import StorageService
 
@@ -207,6 +208,16 @@ class AdmissionService:
         # Generate admission number on acceptance, NOT trigging assessment
         if update_data.status == ApplicationStatus.accepted:
             self._generate_admission_number(app)
+            # Add student role
+            student_role = self.db.query(Role).filter(Role.name == "student").first()
+            if student_role:
+                existing_role = self.db.query(UserRole).filter(
+                    UserRole.user_id == app.user_id, 
+                    UserRole.role_id == student_role.id
+                ).first()
+                if not existing_role:
+                    self.db.add(UserRole(user_id=app.user_id, role_id=student_role.id))
+                    self.db.commit()
 
         return app
 

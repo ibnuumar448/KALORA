@@ -30,7 +30,7 @@ export function AdminSidebar() {
   );
 
   const sidebarClasses = cn(
-    "flex h-full flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300",
+    "flex h-full flex-col bg-emerald-950 border-r border-emerald-900 transition-all duration-300",
     isCollapsed ? "w-20" : "w-64",
     "fixed inset-y-0 left-0 z-50 transform md:relative md:translate-x-0",
     isMobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -40,12 +40,12 @@ export function AdminSidebar() {
     <>
       {isMobileOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm md:hidden" 
+          className="fixed inset-0 z-40 bg-emerald-950/80 backdrop-blur-sm md:hidden" 
           onClick={closeMobile}
         />
       )}
       <div className={sidebarClasses}>
-        <div className={cn("flex h-16 items-center border-b border-slate-800 flex-shrink-0", isCollapsed ? "justify-center px-0" : "px-6 justify-between")}>
+        <div className={cn("flex h-16 items-center border-b border-emerald-900 flex-shrink-0", isCollapsed ? "justify-center px-0" : "px-6 justify-between")}>
           <div className="flex items-center gap-2 overflow-hidden">
             <img src="/logo.jpg" alt="KALORA Logo" className="w-8 h-8 object-contain flex-shrink-0 rounded" />
             <h1 className={cn("text-xl font-bold tracking-tight text-white whitespace-nowrap transition-opacity", isCollapsed && "hidden")}>
@@ -68,8 +68,8 @@ export function AdminSidebar() {
                   title={isCollapsed ? item.name : undefined}
                   className={cn(
                     isActive 
-                      ? "bg-slate-800 text-white" 
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white",
+                      ? "bg-emerald-900 text-white" 
+                      : "text-slate-300 hover:bg-emerald-900 hover:text-white",
                     "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     isCollapsed && "justify-center px-2"
                   )}
@@ -90,7 +90,7 @@ export function AdminSidebar() {
           </nav>
         </div>
         
-        <div className="border-t border-slate-800 p-4 overflow-hidden">
+        <div className="border-t border-emerald-900 p-4 overflow-hidden">
           <div className={cn("mb-4 flex items-center gap-3", isCollapsed ? "justify-center px-0" : "px-3")}>
               <div 
                 className="h-8 w-8 rounded-full bg-red-600 flex items-center justify-center text-white font-bold text-xs uppercase flex-shrink-0"
@@ -111,7 +111,7 @@ export function AdminSidebar() {
             onClick={logout}
             title={isCollapsed ? "Sign out" : undefined}
             className={cn(
-              "group flex w-full items-center rounded-md py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-colors",
+              "group flex w-full items-center rounded-md py-2 text-sm font-medium text-slate-300 hover:bg-emerald-900 hover:text-white transition-colors",
               isCollapsed ? "justify-center px-2" : "px-3"
             )}
           >

@@ -94,7 +94,7 @@ export default function DisciplineManagementPage() {
                   onClick={() => handleSelectStudent(student)}
                   className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
                     selectedStudent?.id === student.id
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-primary bg-primary-light'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >

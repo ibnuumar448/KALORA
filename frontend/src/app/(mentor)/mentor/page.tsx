@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, AlertTriangle, MessageSquarePlus } from 'lucide-react';
+import { Search, AlertTriangle, MessageSquarePlus, MessageSquare, HelpCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 
@@ -16,11 +16,56 @@ export default function MentorDashboard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  const [supportRequests, setSupportRequests] = useState<any[]>([]);
+  const [showMessagingFor, setShowMessagingFor] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
+  const fetchMessages = async (assignmentId: string) => {
+    if (!assignmentId) return;
+    setLoadingMessages(true);
+    try {
+      const res = await api.get(`/mentorship/assignments/${assignmentId}/messages`);
+      setMessages(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleOpenMessaging = async (student: any) => {
+    setShowMessagingFor(student);
+    fetchMessages(student.assignment_id);
+    try {
+      await api.post('/notifications/read-type?type=mentorship_message');
+      window.dispatchEvent(new Event('refreshNotifications'));
+    } catch (err) {}
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !showMessagingFor?.assignment_id) return;
+    try {
+      await api.post(`/mentorship/assignments/${showMessagingFor.assignment_id}/messages`, {
+        content: newMessage
+      });
+      setNewMessage('');
+      fetchMessages(showMessagingFor.assignment_id);
+    } catch (err) {
+      alert("Failed to send message");
+    }
+  };
+
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const response = await api.get('/mentors/me/students');
-        setStudents(response.data);
+        const [studentsRes, supportRes] = await Promise.all([
+          api.get('/mentors/me/students'),
+          api.get('/mentors/me/support-requests')
+        ]);
+        setStudents(studentsRes.data);
+        setSupportRequests(supportRes.data);
       } catch (err: any) {
         console.error('Failed to fetch assigned students', err);
         setError(err.response?.data?.detail || 'Unable to load students');
@@ -99,7 +144,7 @@ export default function MentorDashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {students.map((student) => (
-                    <tr key={student.student_id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-slate-900">{student.full_name}</td>
                       <td className="px-6 py-4 text-slate-500">{student.email}</td>
                       <td className="px-6 py-4 text-slate-600">Cohort 1</td>
@@ -107,11 +152,75 @@ export default function MentorDashboard() {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          className="text-primary hover:text-primary-hover hover:bg-primary-light"
                           onClick={() => setSelectedStudent(student)}
                         >
                           <MessageSquarePlus className="w-4 h-4 mr-2" />
                           Log Note
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-primary hover:text-primary-hover hover:bg-primary-light"
+                          onClick={() => handleOpenMessaging(student)}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Message
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3 border-b border-slate-100">
+          <CardTitle>Support Requests</CardTitle>
+          <CardDescription>Requests submitted by your mentees requiring attention.</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {supportRequests.length === 0 ? (
+            <div className="flex items-center justify-center p-12 text-slate-500 border-t border-dashed border-slate-200 bg-slate-50">
+              <p>No active support requests.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-slate-500 uppercase bg-slate-50/50">
+                  <tr>
+                    <th className="px-6 py-4 font-medium">Student Name</th>
+                    <th className="px-6 py-4 font-medium">Category</th>
+                    <th className="px-6 py-4 font-medium">Message</th>
+                    <th className="px-6 py-4 font-medium">Status</th>
+                    <th className="px-6 py-4 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {supportRequests.map((req) => (
+                    <tr key={req.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-900">{req.student_name}</td>
+                      <td className="px-6 py-4 text-slate-500">{req.category}</td>
+                      <td className="px-6 py-4 text-slate-600 max-w-xs truncate">{req.message}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${req.status === 'open' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-primary"
+                          onClick={() => {
+                             const st = students.find(s => s.student_id === req.student_id);
+                             if(st) handleOpenMessaging(st);
+                          }}
+                        >
+                          Message Mentee
                         </Button>
                       </td>
                     </tr>
@@ -167,6 +276,53 @@ export default function MentorDashboard() {
                 </Button>
               </div>
             </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Messaging Modal */}
+      {showMessagingFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <Card className="w-full max-w-lg shadow-xl border-0 flex flex-col h-[600px] max-h-screen">
+            <CardHeader className="border-b border-slate-100 flex-shrink-0 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Message {showMessagingFor.full_name}</CardTitle>
+                <CardDescription>Direct communication with your mentee</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowMessagingFor(null)}>Close</Button>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+              {loadingMessages ? (
+                <p className="text-center text-slate-500">Loading messages...</p>
+              ) : messages.length === 0 ? (
+                <p className="text-center text-slate-500 mt-10">No messages yet. Send a hello!</p>
+              ) : (
+                messages.map((msg, i) => {
+                  // User is mentor, sender_id check requires mentor's ID. But we can deduce it from the fact that we are logged in.
+                  // For simplicity, we can align right if we are the sender, but since we don't have our user object here by default,
+                  // we can check if msg.sender_id === (somehow know it's us). Wait, mentor is sending, so if sender_id !== showMessagingFor.id it's us.
+                  const isMe = msg.sender_id !== showMessagingFor.id;
+                  return (
+                  <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div className={`px-4 py-2 rounded-2xl max-w-[80%] ${isMe ? 'bg-primary text-white rounded-br-none' : 'bg-slate-100 text-slate-900 rounded-bl-none'}`}>
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                    <span className="text-xs text-slate-400 mt-1">{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                  </div>
+                )})
+              )}
+            </CardContent>
+            <div className="p-4 border-t border-slate-100 flex-shrink-0 flex gap-2">
+              <input 
+                type="text" 
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder="Type your message..." 
+                className="flex-1 h-10 rounded-md border border-slate-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <Button onClick={handleSendMessage}>Send</Button>
+            </div>
           </Card>
         </div>
       )}

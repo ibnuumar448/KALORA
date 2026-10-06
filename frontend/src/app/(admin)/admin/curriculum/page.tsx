@@ -226,7 +226,7 @@ export default function CurriculumMgmtPage() {
                                 <div key={topic.id} className="bg-slate-50/50 border border-slate-100 rounded p-3 text-sm">
                                   <div className="flex justify-between items-start mb-2">
                                     <span className="font-medium text-slate-700">{topic.name}</span>
-                                    <Button variant="ghost" size="sm" className="h-6 text-xs text-blue-600" onClick={() => setShowYoutubeModal(topic.id)}>
+                                    <Button variant="ghost" size="sm" className="h-6 text-xs text-primary" onClick={() => setShowYoutubeModal(topic.id)}>
                                       <Video className="w-3 h-3 mr-1" /> Add Video
                                     </Button>
                                   </div>
@@ -242,7 +242,7 @@ export default function CurriculumMgmtPage() {
                                               href={`https://youtube.com/watch?v=${slot.active_resource.youtube_video_id}`}
                                               target="_blank"
                                               rel="noreferrer"
-                                              className="text-blue-500 hover:underline flex items-center gap-1 mt-1 text-xs"
+                                              className="text-primary hover:underline flex items-center gap-1 mt-1 text-xs"
                                             >
                                               <Video className="w-3 h-3" />
                                               {slot.active_resource.title || 'Watch Video'}
@@ -340,7 +340,7 @@ export default function CurriculumMgmtPage() {
                             </div>
                           </div>
                         ))}
-                        <Button type="button" variant="ghost" size="sm" className="text-blue-600 mt-2" onClick={() => addTopic(modIndex)}>
+                        <Button type="button" variant="ghost" size="sm" className="text-primary mt-2" onClick={() => addTopic(modIndex)}>
                           <Plus className="w-3 h-3 mr-1" /> Add Topic
                         </Button>
                       </div>

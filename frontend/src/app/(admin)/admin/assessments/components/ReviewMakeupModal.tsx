@@ -77,9 +77,9 @@ export function ReviewMakeupModal({ open, onOpenChange, request, onSuccess }: Re
           </div>
 
           {status === 'approved' && (
-            <div className="space-y-3 p-3 bg-blue-50 border border-blue-100 rounded-md">
-              <h3 className="text-sm font-semibold text-blue-900">Custom Makeup Window</h3>
-              <p className="text-xs text-blue-700 mb-2">Only this student will have access during this time.</p>
+            <div className="space-y-3 p-3 bg-primary-light border border-blue-100 rounded-md">
+              <h3 className="text-sm font-semibold text-emerald-900">Custom Makeup Window</h3>
+              <p className="text-xs text-primary-hover mb-2">Only this student will have access during this time.</p>
               
               <div className="grid grid-cols-2 gap-3">
                 <div>

@@ -19,7 +19,8 @@ def get_admin_overview(
     current_user: User = Depends(RequireRole(["super_admin", "admin"]))
 ):
     student_role = db.query(Role).filter(Role.name == "student").first()
-    total_students = db.query(UserRole).filter(UserRole.role_id == student_role.id).count() if student_role else 0
+    # Count unique users who have an accepted application
+    total_students = db.query(Application.user_id).filter(Application.status == ApplicationStatus.accepted).distinct().count()
 
     mentor_role = db.query(Role).filter(Role.name == "mentor").first()
     active_mentors = db.query(UserRole).filter(UserRole.role_id == mentor_role.id).count() if mentor_role else 0

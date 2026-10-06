@@ -92,7 +92,7 @@ export default function IncentivesPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <Trophy className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+              <Trophy className="w-8 h-8 text-primary mx-auto mb-2" />
               <p className="text-sm text-slate-500 mb-1">Active Scholarships</p>
               <p className="text-3xl font-bold text-slate-900">{incentives?.active_scholarships || 0}</p>
             </div>
@@ -190,7 +190,7 @@ export default function IncentivesPage() {
       )}
 
       {/* Info Section */}
-      <Card className="bg-blue-50 border-blue-200">
+      <Card className="bg-primary-light border-blue-200">
         <CardHeader>
           <CardTitle className="text-base">How to Earn Rewards</CardTitle>
         </CardHeader>

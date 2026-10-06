@@ -9,7 +9,8 @@ from app.services.mentorship import MentorshipService
 from app.schemas.mentorship import (
     MentorshipStatsResponse, MentorListResponse, AssignedStudentResponse,
     UnassignedStudentResponse, AssignmentHistoryResponse, AssignStudentsRequest,
-    ReassignStudentRequest, EndAssignmentRequest
+    ReassignStudentRequest, EndAssignmentRequest, MentorshipMessageResponse,
+    MentorshipMessageCreate
 )
 
 router = APIRouter(prefix="/mentorship", tags=["mentorship"])
@@ -70,3 +71,22 @@ def end_assignment(
     service = MentorshipService(db)
     service.end_assignment(assignment_id, request.reason, request.notes or "", current_user.id)
     return {"message": "Ended successfully"}
+
+@router.get("/assignments/{assignment_id}/messages", response_model=List[MentorshipMessageResponse])
+def get_messages(
+    assignment_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = MentorshipService(db)
+    return service.get_messages(assignment_id, current_user.id)
+
+@router.post("/assignments/{assignment_id}/messages", response_model=MentorshipMessageResponse)
+def send_message(
+    assignment_id: UUID,
+    request: MentorshipMessageCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = MentorshipService(db)
+    return service.send_message(assignment_id, current_user.id, request.content)

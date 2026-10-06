@@ -41,7 +41,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
+            <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-900">{data.stats.total_students}</div>
@@ -51,7 +51,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Active Mentors</CardTitle>
-            <GraduationCap className="h-4 w-4 text-blue-600" />
+            <GraduationCap className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-900">{data.stats.active_mentors}</div>
@@ -60,7 +60,7 @@ export default function AdminDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-500">Pending Apps</CardTitle>
-            <BookOpen className="h-4 w-4 text-blue-600" />
+            <BookOpen className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-900">{data.stats.pending_applications}</div>

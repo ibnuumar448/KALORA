@@ -95,17 +95,17 @@ export default function AssessmentsPage() {
               <CardContent className="space-y-4 flex-1">
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-slate-600">
-                    <BookOpen className="w-4 h-4 text-blue-600" />
+                    <BookOpen className="w-4 h-4 text-primary" />
                     <span>{a.question_count} questions</span>
                   </div>
                   {a.duration_minutes && (
                     <div className="flex items-center gap-2 text-slate-600">
-                      <Clock className="w-4 h-4 text-blue-600" />
+                      <Clock className="w-4 h-4 text-primary" />
                       <span>{a.duration_minutes} minutes</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 text-slate-600">
-                    <Trophy className="w-4 h-4 text-blue-600" />
+                    <Trophy className="w-4 h-4 text-primary" />
                     <span>Pass: {a.passing_score}%</span>
                   </div>
                 </div>
@@ -130,7 +130,7 @@ export default function AssessmentsPage() {
                 )}
 
                 {a.status === 'makeup_approved' && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800">
+                  <div className="p-3 bg-primary-light border border-blue-200 rounded-md text-xs text-blue-800">
                     <p className="font-semibold mb-1">Makeup Window Approved</p>
                     <p>Start: {new Date(a.makeup_start_at).toLocaleString()}</p>
                     <p>End: {new Date(a.makeup_end_at).toLocaleString()}</p>
@@ -153,7 +153,7 @@ export default function AssessmentsPage() {
                 ) : a.status === 'submitted' || a.status === 'makeup_submitted' ? (
                   a.release_results_at && new Date(a.release_results_at) <= new Date() ? (
                     <Link href={`/dashboard/assessments/${a.id}/results`} className="w-full">
-                      <Button variant="outline" className="w-full text-blue-600 border-blue-200 hover:bg-blue-50">
+                      <Button variant="outline" className="w-full text-primary border-blue-200 hover:bg-primary-light">
                         View Results
                       </Button>
                     </Link>
@@ -185,7 +185,7 @@ export default function AssessmentsPage() {
               <textarea
                 required
                 rows={4}
-                className="w-full border rounded-md p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full border rounded-md p-3 text-sm focus:ring-2 focus:ring-primary outline-none"
                 placeholder="Reason for missing the assessment..."
                 value={reason}
                 onChange={e => setReason(e.target.value)}

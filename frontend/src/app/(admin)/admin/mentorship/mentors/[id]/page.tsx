@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 
 export default function MentorDetailsPage({ params }: { params: { id: string } }) {
-  const resolvedParams = React.use(params as any);
+  const resolvedParams = React.use(params as any) as { id: string };
   const mentorId = resolvedParams.id;
   
   const router = useRouter();

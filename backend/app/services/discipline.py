@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime
 from app.models.discipline import Default, Warning, Suspension, RiskFlag, WarningLevel, RiskLevel
+from app.models.notification import Notification
 from app.models.incentive import Scholarship, Certificate, Incentive, ScholarshipLevel, CertificateStatus
 from app.models.progress import TopicMastery
 from app.schemas.discipline import (
@@ -32,6 +33,16 @@ class DisciplineService:
         # Update risk flag if needed
         self._update_risk_flag(student_id, cohort_id)
         
+        # Send notification
+        notification = Notification(
+            user_id=student_id,
+            title="New Disciplinary Incident",
+            message="A new disciplinary incident has been logged on your account. Please review it in your Disciplinary Notices.",
+            type="general"
+        )
+        self.db.add(notification)
+        self.db.commit()
+        
         return DefaultResponse.from_orm(default)
     
     def log_warning(self, student_id: UUID, cohort_id: UUID, request: LogWarningRequest) -> WarningResponse:
@@ -50,6 +61,16 @@ class DisciplineService:
         if request.level == "final":
             self._update_risk_flag(student_id, cohort_id, level=RiskLevel.red)
         
+        # Send notification
+        notification = Notification(
+            user_id=student_id,
+            title=f"Disciplinary Warning Issued",
+            message=f"A {request.level} disciplinary warning has been issued to your account. Please review it in your Disciplinary Notices.",
+            type="general"
+        )
+        self.db.add(notification)
+        self.db.commit()
+        
         return WarningResponse.from_orm(warning)
     
     def log_suspension(self, student_id: UUID, cohort_id: UUID, request: LogSuspensionRequest) -> SuspensionResponse:
@@ -67,6 +88,16 @@ class DisciplineService:
         # Update risk flag to red
         self._update_risk_flag(student_id, cohort_id, level=RiskLevel.red)
         
+        # Send notification
+        notification = Notification(
+            user_id=student_id,
+            title="Account Suspended",
+            message="Your account has been suspended due to a disciplinary action. Please review it in your Disciplinary Notices.",
+            type="general"
+        )
+        self.db.add(notification)
+        self.db.commit()
+        
         return SuspensionResponse.from_orm(suspension)
     
     def end_suspension(self, suspension_id: UUID) -> SuspensionResponse:
@@ -81,6 +112,24 @@ class DisciplineService:
         self.db.refresh(suspension)
         
         return SuspensionResponse.from_orm(suspension)
+    
+    def acknowledge_notice(self, notice_type: str, notice_id: UUID, user_id: UUID):
+        """Acknowledge a disciplinary notice"""
+        if notice_type == "incident":
+            notice = self.db.query(Default).filter(Default.id == notice_id, Default.student_id == user_id).first()
+        elif notice_type == "warning":
+            notice = self.db.query(Warning).filter(Warning.id == notice_id, Warning.student_id == user_id).first()
+        elif notice_type == "suspension":
+            notice = self.db.query(Suspension).filter(Suspension.id == notice_id, Suspension.student_id == user_id).first()
+        else:
+            raise ValueError("Invalid notice type")
+            
+        if not notice:
+            raise ValueError("Notice not found or unauthorized")
+            
+        notice.acknowledged_at = datetime.utcnow()
+        self.db.commit()
+        return {"status": "acknowledged"}
     
     def _update_risk_flag(self, student_id: UUID, cohort_id: UUID, level: RiskLevel = None):
         """Update a student's risk flag based on their disciplinary record"""

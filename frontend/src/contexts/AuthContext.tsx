@@ -13,6 +13,9 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
+  phone?: string;
+  whatsapp_link?: string;
+  profile_picture_url?: string;
   roles: UserRole[];
 }
 

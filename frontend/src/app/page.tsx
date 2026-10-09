@@ -65,14 +65,16 @@ export default function Home() {
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <motion.div 
-              className="mb-6 flex justify-center"
+              className="mb-6 flex flex-col items-center justify-center"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              <span className="px-3 py-1 rounded-full bg-primary-light text-primary text-xs font-semibold tracking-wider uppercase">
+              {/* Institutional name container */}
+              <span className="text-base font-medium text-slate-700 tracking-wide">
                 Karim Lamido Online Refresher Academy
               </span>
+              <div className="w-12 h-px bg-primary mt-3 opacity-70"></div>
             </motion.div>
             <motion.h1 
               className="text-5xl font-extrabold tracking-tight text-slate-900 sm:text-6xl mb-6"
@@ -272,8 +274,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 mt-12 pt-8 border-t border-slate-800 text-sm flex flex-col md:flex-row justify-between items-center">
           <p>&copy; {new Date().getFullYear()} KALORA. All rights reserved.</p>
           <div className="flex gap-4 mt-4 md:mt-0">
-            <Link href="#" className="hover:text-white">Privacy Policy</Link>
-            <Link href="#" className="hover:text-white">Terms of Service</Link>
+            <Link href="/privacy-policy" className="hover:text-white">Privacy Policy</Link>
+            <Link href="/terms-of-service" className="hover:text-white">Terms of Service</Link>
           </div>
         </div>
       </footer>

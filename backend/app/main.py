@@ -12,8 +12,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.api.v1 import applications, students, curriculum, assessments, progress, mentors, admin, discipline, settings, mentorship, notifications
-app.include_router(auth.router, prefix="/api/v1") 
+from app.api.v1 import applications, students, curriculum, assessments, progress, mentors, admin, discipline, settings, mentorship, notifications, users
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
 app.include_router(applications.router, prefix="/api/v1")
 app.include_router(students.router, prefix="/api/v1") 
 app.include_router(curriculum.router, prefix="/api/v1")

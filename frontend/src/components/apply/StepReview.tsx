@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 
 export default function StepReview({ data, onSubmit, onBack, isSubmitting }: any) {
-  
+
   const Section = ({ title, children }: any) => (
     <div className="border border-slate-200 rounded-lg overflow-hidden mb-6">
       <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">

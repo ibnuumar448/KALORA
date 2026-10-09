@@ -19,3 +19,4 @@ build/
 *.user
 
 # Kalora specific (if any)
+backend/app/uploads/

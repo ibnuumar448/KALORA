@@ -8,3 +8,5 @@ from app.models.progress import ProgressRecord, TopicMastery
 from app.models.mentorship import MentorAssignment, MentorNote
 from app.models.discipline import Default, Warning, Suspension, RiskFlag
 from app.models.notification import Notification
+from app.models.incentive import Scholarship, Incentive, Certificate
+from app.models.settings import GlobalSetting

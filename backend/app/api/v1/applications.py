@@ -149,3 +149,4 @@ def update_application_status(
 ):
     service = AdmissionService(db)
     return service.update_application_status(id, update_data, current_user.id)
+    return service.update_application_status(id, update_data, current_user.id)

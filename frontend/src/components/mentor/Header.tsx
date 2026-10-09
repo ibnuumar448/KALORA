@@ -1,19 +1,27 @@
-import React from 'react';
-import { Bell, Search, Menu } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { useSidebar } from '@/contexts/SidebarContext';
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Bell, Menu, X, Users, MessageSquare, ShieldAlert, BookOpen, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { cn } from '@/components/ui/button';
+
+const navigation = [
+  { name: 'My Students', href: '/mentor', icon: Users },
+  { name: 'Interventions', href: '/mentor/interventions', icon: MessageSquare },
+  { name: 'My Discipline', href: '/mentor/discipline', icon: ShieldAlert },
+];
 
 export function MentorHeader() {
-  const { user } = useAuth();
-  const { toggleSidebar, toggleMobile } = useSidebar();
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
   
-  const [notifications, setNotifications] = React.useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = React.useState(0);
-  const [showDropdown, setShowDropdown] = React.useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchNotifs = async () => {
       try {
         const [listRes, countRes] = await Promise.all([
@@ -56,93 +64,175 @@ export function MentorHeader() {
       console.error(err);
     }
   };
+
   return (
-    <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white border-b border-slate-200">
-      <div className="flex flex-1 items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-1 items-center gap-4">
-          <button 
-            onClick={toggleMobile}
-            className="md:hidden text-slate-500 hover:text-slate-700 focus:outline-none"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-          <button 
-            onClick={toggleSidebar}
-            className="hidden md:block text-slate-500 hover:text-slate-700 focus:outline-none"
-          >
-            <Menu className="h-6 w-6" />
-          </button>
-          <div className="w-full max-w-lg lg:max-w-xs relative">
-            <label htmlFor="search" className="sr-only">Search</label>
+    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          
+          {/* Left: Branding & Desktop Nav */}
+          <div className="flex items-center">
+            {/* Branding */}
+            <Link href="/mentor" className="flex items-center gap-2 flex-shrink-0 mr-8">
+              <BookOpen className="w-6 h-6 text-primary" />
+              <span className="text-xl font-bold tracking-tight text-slate-900 hidden sm:block">KALORA Mentor</span>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex space-x-2">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href || (pathname.startsWith(item.href + '/') && item.href !== '/mentor');
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      "px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
+                      isActive 
+                        ? "bg-primary-light text-primary" 
+                        : "text-slate-600 hover:bg-slate-50 hover:text-primary"
+                    )}
+                  >
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Right: Notifications, Profile, Logout */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            
+            {/* Notifications */}
             <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              <button
+                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                className="relative rounded-full p-2 text-slate-400 hover:text-slate-500 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                title="Notifications"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+                )}
+              </button>
+
+              {showNotifDropdown && (
+                <div className="absolute right-0 mt-2 w-80 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                  <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-md">
+                    <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button onClick={handleMarkAllRead} className="text-xs text-primary hover:underline">
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-slate-500">No notifications</div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          className={`p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors ${!notif.is_read ? 'bg-blue-50/50 cursor-pointer' : ''}`}
+                          onClick={() => !notif.is_read && handleMarkAsRead(notif.id)}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <p className={`text-sm font-medium ${!notif.is_read ? 'text-slate-900' : 'text-slate-700'}`}>
+                              {notif.title}
+                            </p>
+                            <span className="text-xs text-slate-400 whitespace-nowrap ml-2">
+                              {new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                          </div>
+                          <p className={`text-xs ${!notif.is_read ? 'text-slate-700' : 'text-slate-500'}`}>
+                            {notif.message}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Profile Dropdown / Link */}
+            <Link href="/mentor/profile" className="hidden sm:flex items-center gap-3 pl-4 border-l border-slate-200 hover:opacity-80 transition-opacity">
+              <div className="h-8 w-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold uppercase overflow-hidden">
+                {user?.profile_picture_url ? (
+                  <img src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/users/profile-pictures/${user.profile_picture_url}?token=${typeof window !== 'undefined' ? localStorage.getItem('access_token') : ''}`} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user?.full_name?.substring(0, 1) || 'M'
+                )}
               </div>
-              <Input
-                id="search"
-                name="search"
-                className="pl-10 bg-slate-50 border-slate-200"
-                placeholder="Search your students..."
-                type="search"
-              />
+              <div className="text-sm">
+                <div className="font-medium text-slate-900 truncate max-w-[150px]">{user?.full_name || 'Academic Mentor'}</div>
+              </div>
+            </Link>
+
+            {/* Logout */}
+            <button
+              onClick={logout}
+              className="hidden sm:flex items-center gap-2 ml-2 p-2 text-slate-500 hover:text-red-600 transition-colors rounded-md focus:outline-none"
+              title="Sign out"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
+
+            {/* Mobile Menu Button */}
+            <div className="flex md:hidden items-center ml-2">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-50 focus:outline-none"
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
             </div>
           </div>
         </div>
-        
-        <div className="ml-4 flex items-center md:ml-6 gap-4">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="relative rounded-full bg-white p-1 text-slate-400 hover:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-            >
-              <span className="sr-only">View notifications</span>
-              <Bell className="h-5 w-5" aria-hidden="true" />
-              {unreadCount > 0 && (
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-              )}
-            </button>
-
-            {showDropdown && (
-              <div className="absolute right-0 mt-2 w-80 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
-                <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-md">
-                  <h3 className="text-sm font-semibold text-slate-900">Notifications</h3>
-                  {unreadCount > 0 && (
-                    <button onClick={handleMarkAllRead} className="text-xs text-emerald-600 hover:underline">
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-slate-500">No notifications</div>
-                  ) : (
-                    notifications.map(notif => (
-                      <div 
-                        key={notif.id} 
-                        className={`p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors ${!notif.is_read ? 'bg-emerald-50/50' : ''}`}
-                        onClick={() => !notif.is_read && handleMarkAsRead(notif.id)}
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <p className={`text-sm font-medium ${!notif.is_read ? 'text-slate-900' : 'text-slate-700'}`}>
-                            {notif.title}
-                          </p>
-                          <span className="text-xs text-slate-400 whitespace-nowrap ml-2">
-                            {new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </span>
-                        </div>
-                        <p className={`text-xs ${!notif.is_read ? 'text-slate-700' : 'text-slate-500'}`}>
-                          {notif.message}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
+
+      {/* Mobile Menu Dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white shadow-lg absolute w-full left-0">
+          <nav className="px-4 pt-2 pb-4 space-y-1">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href || (pathname.startsWith(item.href + '/') && item.href !== '/mentor');
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-3 rounded-md text-base font-medium transition-colors",
+                    isActive
+                      ? "bg-primary-light text-primary"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-primary"
+                  )}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.name}
+                </Link>
+              );
+            })}
+            
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-3 px-3 py-2 mb-2">
+                <div className="h-8 w-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold uppercase flex-shrink-0">
+                  {user?.full_name?.substring(0, 1) || 'M'}
+                </div>
+                <div className="text-sm font-medium text-slate-900 truncate">{user?.full_name || 'Academic Mentor'}</div>
+              </div>
+              <button
+                onClick={() => { setMobileMenuOpen(false); logout(); }}
+                className="flex w-full items-center gap-3 px-3 py-3 rounded-md text-base font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                <LogOut className="h-5 w-5" />
+                Sign out
+              </button>
+            </div>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

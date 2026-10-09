@@ -19,7 +19,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <ProtectedRoute>
       <SidebarProvider>
         <div className="flex h-screen w-full bg-slate-50 font-sans overflow-hidden relative print:h-auto print:overflow-visible print:bg-white">
-          <Sidebar />
           <div className="flex flex-1 flex-col overflow-hidden print:overflow-visible">
             <Header />
             <main className="flex-1 overflow-y-auto bg-slate-50 p-6 lg:p-8 print:p-0 print:overflow-visible print:bg-white">

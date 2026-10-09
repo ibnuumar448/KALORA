@@ -28,7 +28,7 @@ export default function ApplyPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [cohorts, setCohorts] = useState<any[]>([]);
   const [applicationData, setApplicationData] = useState<any>({});
-  
+
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -41,9 +41,9 @@ export default function ApplyPage() {
       setCohorts(cohortsRes.data);
 
       if (!activeCohort) {
-         toast.error("Registration is currently closed");
-         setIsLoading(false);
-         return;
+        toast.error("Registration is currently closed");
+        setIsLoading(false);
+        return;
       }
 
       const appsRes = await api.get('/applications/me');
@@ -56,7 +56,7 @@ export default function ApplyPage() {
           window.location.href = '/application-status';
           return;
         }
-        
+
         // Prevent editing if application is locked
         if (isEdit && latest.status !== 'draft' && latest.status !== 'applied' && latest.status !== 'submitted') {
           toast.error("Application is locked and cannot be edited");
@@ -103,7 +103,7 @@ export default function ApplyPage() {
     try {
       setIsSaving(true);
       const payload: any = {};
-      
+
       // Only include olevel_results if they are a graduate and it's an object, not an array
       if (applicationData.academic_status === 'secondary_graduate' && applicationData.olevel_results && !Array.isArray(applicationData.olevel_results)) {
         payload.olevel_results = applicationData.olevel_results;
@@ -115,8 +115,8 @@ export default function ApplyPage() {
     } catch (e: any) {
       let errorMsg = 'Failed to submit application';
       if (e.response?.data?.detail) {
-        errorMsg = Array.isArray(e.response.data.detail) 
-          ? e.response.data.detail.map((err: any) => err.msg || err).join(', ') 
+        errorMsg = Array.isArray(e.response.data.detail)
+          ? e.response.data.detail.map((err: any) => err.msg || err).join(', ')
           : e.response.data.detail;
       }
       toast.error(errorMsg);
@@ -151,7 +151,7 @@ export default function ApplyPage() {
           <span className="text-sm font-medium text-slate-500">{STEPS[currentStep]}</span>
         </div>
         <div className="w-full bg-slate-200 rounded-full h-2">
-          <div 
+          <div
             className="bg-primary h-2 rounded-full transition-all duration-300"
             style={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
           />

@@ -27,11 +27,19 @@ class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
     full_name: str
+    phone: Optional[str] = None
+    whatsapp_link: Optional[str] = None
+    profile_picture_url: Optional[str] = None
     created_at: datetime
     roles: List[UserRoleSummary] = []
     
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    whatsapp_link: Optional[str] = None
 
 class AdminUserResponse(BaseModel):
     id: UUID

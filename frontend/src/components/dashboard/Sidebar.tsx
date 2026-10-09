@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, LayoutDashboard, Target, Users, LogOut, Zap, Trophy, X } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Target, Users, LogOut, Zap, Trophy, ShieldAlert, X } from 'lucide-react';
 import { cn } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -10,6 +10,7 @@ const navigation = [
   { name: 'Student Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Curriculum Viewer', href: '/dashboard/curriculum', icon: BookOpen },
   { name: 'Assessments', href: '/dashboard/assessments', icon: Target },
+  { name: 'My Discipline', href: '/dashboard/discipline', icon: ShieldAlert },
 ];
 
 export function Sidebar() {

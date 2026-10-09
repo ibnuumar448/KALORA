@@ -18,11 +18,11 @@ export default function ApplicationStatusPage() {
         if (res.data && res.data.length > 0) {
           const fetchedApp = res.data[0];
           setApp(fetchedApp);
-          
+
           const pic = fetchedApp.documents?.find((d: any) => d.document_type === 'profile_picture' || d.document_type === 'PROFILE_PICTURE');
           if (pic) {
             api.get(`/applications/documents/${pic.file_url}`, { responseType: 'blob' })
-              .then(r => setProfilePicUrl(window.URL.createObjectURL(new Blob([r.data], { type: r.headers['content-type'] }))))
+              .then(r => setProfilePicUrl(window.URL.createObjectURL(new Blob([r.data], { type: r.headers['content-type'] as string }))))
               .catch(err => console.error("Could not load profile pic", err));
           }
         }
@@ -65,13 +65,13 @@ export default function ApplicationStatusPage() {
     <>
       {/* Screen View */}
       <div className="max-w-4xl mx-auto bg-white sm:rounded-xl sm:shadow-sm sm:border border-slate-200 p-4 sm:p-8 print:hidden">
-        
+
         <div className="flex justify-center mb-6">
           <div className="bg-green-100 p-3 rounded-full">
             <CheckCircle2 className="w-12 h-12 text-green-600" />
           </div>
         </div>
-        
+
         <h1 className="text-2xl font-bold text-center text-slate-900 mb-2">Application Submitted</h1>
         <p className="text-center text-slate-600 mb-8">
           Your application has been successfully submitted. Please print this acknowledgement for your records.
@@ -89,7 +89,7 @@ export default function ApplicationStatusPage() {
                 <Item label="Cohort / Year" value={app.cohort?.name || 'N/A'} />
               </div>
             </div>
-            
+
             <div className="border border-slate-200 rounded-lg p-6">
               <h3 className="font-bold text-lg border-b pb-2 mb-4">Personal Information</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -190,8 +190,8 @@ export default function ApplicationStatusPage() {
       </div>
 
       {/* Print View */}
-      <PrintLayout 
-        title="Application Acknowledgement Slip" 
+      <PrintLayout
+        title="Application Acknowledgement Slip"
         documentRef={app.application_number}
       >
         <div className="grid grid-cols-3 gap-8 mb-8">
@@ -205,7 +205,7 @@ export default function ApplicationStatusPage() {
                 <Item label="Cohort / Year" value={app.cohort?.name || 'N/A'} />
               </div>
             </div>
-            
+
             <div className="mb-8">
               <h3 className="font-bold text-lg border-b border-slate-300 pb-2 mb-4 uppercase text-slate-700 tracking-wide">Personal Details</h3>
               <div className="grid grid-cols-2 gap-y-4 gap-x-6">
@@ -218,7 +218,7 @@ export default function ApplicationStatusPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="col-span-1">
             <div className="border border-slate-300 rounded p-4 flex flex-col items-center">
               <div className="w-32 h-32 bg-slate-100 rounded overflow-hidden flex items-center justify-center">

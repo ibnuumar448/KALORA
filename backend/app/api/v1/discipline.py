@@ -16,15 +16,42 @@ router = APIRouter(prefix="", tags=["discipline"])
 
 # ==================== Discipline Endpoints ====================
 
+from pydantic import BaseModel
+class DisciplineStatsResponse(BaseModel):
+    yellow: int
+    red: int
+    green: int
+    total: int
+
+@router.get("/discipline/stats", response_model=DisciplineStatsResponse)
+def get_discipline_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(RequireRole(["super_admin"]))
+):
+    """Get dynamic disciplinary stats"""
+    service = DisciplineService(db)
+    # Simple counting logic for stats
+    from app.models.discipline import RiskFlag, RiskLevel
+    total = db.query(User).count() # This should ideally exclude super_admin, but keeping simple
+    red = db.query(RiskFlag).filter(RiskFlag.flag_level == RiskLevel.red).count()
+    yellow = db.query(RiskFlag).filter(RiskFlag.flag_level == RiskLevel.yellow).count()
+    green = total - (red + yellow)
+    return {"yellow": yellow, "red": red, "green": green, "total": total}
+
 @router.get("/students/{student_id}/discipline")
 def get_student_discipline(
     student_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["admin", "super_admin", "mentor", "academic_coordinator"]))
+    current_user: User = Depends(RequireRole(["super_admin", "admin", "mentor", "student", "academic_coordinator"]))
 ):
-    """Get disciplinary status for a student"""
-    # For now, use a default cohort id. In a real app we'd query the student's cohort.
-    cohort_id = UUID('00000000-0000-0000-0000-000000000000')
+    """Get disciplinary status for a user"""
+    from fastapi import HTTPException
+    is_super_admin = any(r.name == 'super_admin' for r in current_user.roles)
+    if not is_super_admin and str(current_user.id) != str(student_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this user's disciplinary record")
+    
+    # Use None for cohort_id since discipline is user-centric now
+    cohort_id = None
     
     service = DisciplineService(db)
     return service.get_student_disciplinary_status(student_id, cohort_id)
@@ -34,10 +61,10 @@ def log_student_default(
     student_id: UUID,
     request: LogDefaultRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["admin", "super_admin", "mentor"]))
+    current_user: User = Depends(RequireRole(["super_admin"]))
 ):
-    """Log a default/infraction for a student"""
-    cohort_id = UUID('00000000-0000-0000-0000-000000000000')
+    """Log an incident/default for a user"""
+    cohort_id = None
     
     service = DisciplineService(db)
     return service.log_default(student_id, cohort_id, request)
@@ -47,10 +74,10 @@ def log_student_warning(
     student_id: UUID,
     request: LogWarningRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["admin", "super_admin"]))
+    current_user: User = Depends(RequireRole(["super_admin"]))
 ):
-    """Issue a warning to a student"""
-    cohort_id = UUID('00000000-0000-0000-0000-000000000000')
+    """Issue a warning to a user"""
+    cohort_id = None
     
     service = DisciplineService(db)
     return service.log_warning(student_id, cohort_id, request)
@@ -60,10 +87,10 @@ def log_student_suspension(
     student_id: UUID,
     request: LogSuspensionRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["admin", "super_admin"]))
+    current_user: User = Depends(RequireRole(["super_admin"]))
 ):
-    """Record a suspension for a student"""
-    cohort_id = UUID('00000000-0000-0000-0000-000000000000')
+    """Record a suspension for a user"""
+    cohort_id = None
     
     service = DisciplineService(db)
     return service.log_suspension(student_id, cohort_id, request)
@@ -72,11 +99,26 @@ def log_student_suspension(
 def end_suspension(
     suspension_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["admin", "super_admin"]))
+    current_user: User = Depends(RequireRole(["super_admin"]))
 ):
     """End an active suspension"""
     service = DisciplineService(db)
     return service.end_suspension(suspension_id)
+
+@router.put("/discipline/notices/{notice_type}/{notice_id}/acknowledge")
+def acknowledge_notice(
+    notice_type: str,
+    notice_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Explicitly acknowledge a disciplinary notice"""
+    service = DisciplineService(db)
+    from fastapi import HTTPException
+    try:
+        return service.acknowledge_notice(notice_type, notice_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 # ==================== Incentive Endpoints ====================
 

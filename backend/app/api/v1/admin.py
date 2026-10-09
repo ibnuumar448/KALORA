@@ -25,14 +25,14 @@ def get_admin_overview(
     mentor_role = db.query(Role).filter(Role.name == "mentor").first()
     active_mentors = db.query(UserRole).filter(UserRole.role_id == mentor_role.id).count() if mentor_role else 0
 
-    pending_applications = db.query(Application).filter(Application.status == ApplicationStatus.applied).count()
+    pending_applications = db.query(Application).filter(Application.status == ApplicationStatus.submitted).count()
     
     # Fake at_risk until disciplinary models are fully integrated
     at_risk_students = 0 
     
     # Fetch recent pending applications
     recent_apps = db.query(Application).filter(
-        Application.status == ApplicationStatus.applied
+        Application.status == ApplicationStatus.submitted
     ).order_by(Application.created_at.desc()).limit(5).all()
 
     recent_apps_data = []

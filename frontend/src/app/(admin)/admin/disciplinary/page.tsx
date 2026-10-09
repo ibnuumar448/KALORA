@@ -12,6 +12,18 @@ export default function DisciplineManagementPage() {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [disciplineStatus, setDisciplineStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Modal states
+  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
+  const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+  
+  const [incidentForm, setIncidentForm] = useState({ reason: '', is_excused: false, excused_reason: '' });
+  const [warningForm, setWarningForm] = useState({ level: 'first', reason: '' });
+  const [suspendForm, setSuspendForm] = useState({ reason: '' });
+
+  // Dynamic stats state
+  const [stats, setStats] = useState({ yellow: 0, red: 0, green: 0, total: 0 });
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -19,6 +31,13 @@ export default function DisciplineManagementPage() {
         const response = await api.get('/admin/users');
         const nonSuperAdmins = response.data.filter((u: any) => !u.roles.includes('super_admin'));
         setStudents(nonSuperAdmins);
+        
+        try {
+          const statsRes = await api.get('/discipline/stats');
+          setStats(statsRes.data);
+        } catch (statsErr) {
+          console.error('Failed to fetch stats', statsErr);
+        }
       } catch (err: any) {
         console.error('Failed to fetch students', err);
       } finally {
@@ -183,44 +202,15 @@ export default function DisciplineManagementPage() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-4 border-t">
-                  <Button size="sm" variant="outline" onClick={() => toast.info('Log Default: Not yet implemented')}>Log Default</Button>
-                  <Button size="sm" variant="outline" onClick={() => toast.info('Issue Warning: Not yet implemented')}>Issue Warning</Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsIncidentModalOpen(true)}>Log Incident</Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsWarningModalOpen(true)}>Issue Warning</Button>
                   <Button 
                     size="sm" 
                     variant="outline" 
-                    className="text-orange-600 border-orange-200 hover:bg-orange-50"
-                    onClick={async () => {
-                      if (!confirm("Are you sure you want to suspend this student?")) return;
-                      try {
-                        await api.post(`/students/${selectedStudent.id}/discipline/suspensions`, { reason: "Admin mandated suspension" });
-                        toast.success("Student suspended");
-                        handleSelectStudent(selectedStudent);
-                      } catch (err) {
-                        toast.error("Failed to suspend student");
-                      }
-                    }}
+                    className="text-orange-600 border-orange-200 hover:bg-orange-50 ml-auto"
+                    onClick={() => setIsSuspendModalOpen(true)}
                   >
-                    Suspend Student
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="text-red-600 border-red-200 hover:bg-red-50 ml-auto"
-                    onClick={async () => {
-                      if (!confirm("Are you sure you want to completely delete this user? This cannot be undone.")) return;
-                      try {
-                        await api.delete(`/admin/users/${selectedStudent.id}`);
-                        toast.success("User deleted");
-                        setSelectedStudent(null);
-                        setDisciplineStatus(null);
-                        const res = await api.get('/admin/users?role=student');
-                        setStudents(res.data);
-                      } catch (err) {
-                        toast.error("Failed to delete user");
-                      }
-                    }}
-                  >
-                    Delete User
+                    Suspend User
                   </Button>
                 </div>
               </CardContent>
@@ -244,24 +234,129 @@ export default function DisciplineManagementPage() {
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-sm text-slate-500 mb-1">At-Risk Students (Yellow)</p>
-              <p className="text-3xl font-bold text-yellow-600">0</p>
+              <p className="text-sm text-slate-500 mb-1">At-Risk (Yellow)</p>
+              <p className="text-3xl font-bold text-yellow-600">{stats.yellow}</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-slate-500 mb-1">Critical Risk (Red)</p>
-              <p className="text-3xl font-bold text-red-600">0</p>
+              <p className="text-3xl font-bold text-red-600">{stats.red}</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-slate-500 mb-1">Good Standing (Green)</p>
-              <p className="text-3xl font-bold text-green-600">{students.length}</p>
+              <p className="text-3xl font-bold text-green-600">{stats.green}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-slate-500 mb-1">Total Students</p>
-              <p className="text-3xl font-bold text-slate-900">{students.length}</p>
+              <p className="text-sm text-slate-500 mb-1">Total Users</p>
+              <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Modals */}
+      {isIncidentModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">Log Incident</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Reason</label>
+                <textarea 
+                  className="w-full border rounded p-2" 
+                  value={incidentForm.reason}
+                  onChange={(e) => setIncidentForm({...incidentForm, reason: e.target.value})}
+                />
+              </div>
+              <div className="flex gap-2 justify-end mt-6">
+                <Button variant="outline" onClick={() => setIsIncidentModalOpen(false)}>Cancel</Button>
+                <Button onClick={async () => {
+                  try {
+                    await api.post(`/students/${selectedStudent.id}/discipline/defaults`, incidentForm);
+                    toast.success("Incident logged successfully");
+                    setIsIncidentModalOpen(false);
+                    handleSelectStudent(selectedStudent);
+                  } catch (err) {
+                    toast.error("Failed to log incident");
+                  }
+                }}>Submit</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isWarningModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">Issue Warning</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Warning Level</label>
+                <select 
+                  className="w-full border rounded p-2"
+                  value={warningForm.level}
+                  onChange={(e) => setWarningForm({...warningForm, level: e.target.value})}
+                >
+                  <option value="first">First Warning</option>
+                  <option value="final">Final Warning</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Reason</label>
+                <textarea 
+                  className="w-full border rounded p-2" 
+                  value={warningForm.reason}
+                  onChange={(e) => setWarningForm({...warningForm, reason: e.target.value})}
+                />
+              </div>
+              <div className="flex gap-2 justify-end mt-6">
+                <Button variant="outline" onClick={() => setIsWarningModalOpen(false)}>Cancel</Button>
+                <Button onClick={async () => {
+                  try {
+                    await api.post(`/students/${selectedStudent.id}/discipline/warnings`, warningForm);
+                    toast.success("Warning issued successfully");
+                    setIsWarningModalOpen(false);
+                    handleSelectStudent(selectedStudent);
+                  } catch (err) {
+                    toast.error("Failed to issue warning");
+                  }
+                }}>Issue Warning</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSuspendModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-full max-w-md border-t-4 border-red-500">
+            <h3 className="text-lg font-bold mb-4 text-red-600">Suspend User</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Reason for Suspension</label>
+                <textarea 
+                  className="w-full border rounded p-2" 
+                  value={suspendForm.reason}
+                  onChange={(e) => setSuspendForm({...suspendForm, reason: e.target.value})}
+                />
+              </div>
+              <div className="flex gap-2 justify-end mt-6">
+                <Button variant="outline" onClick={() => setIsSuspendModalOpen(false)}>Cancel</Button>
+                <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={async () => {
+                  try {
+                    await api.post(`/students/${selectedStudent.id}/discipline/suspensions`, suspendForm);
+                    toast.success("User suspended successfully");
+                    setIsSuspendModalOpen(false);
+                    handleSelectStudent(selectedStudent);
+                  } catch (err) {
+                    toast.error("Failed to suspend user");
+                  }
+                }}>Confirm Suspension</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

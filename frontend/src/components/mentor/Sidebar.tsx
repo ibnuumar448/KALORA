@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Users, LogOut, MessageSquare, X } from 'lucide-react';
+import { BookOpen, Users, LogOut, MessageSquare, ShieldAlert, X } from 'lucide-react';
 import { cn } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -9,6 +9,7 @@ import { useSidebar } from '@/contexts/SidebarContext';
 const navigation = [
   { name: 'My Students', href: '/mentor', icon: Users },
   { name: 'Interventions', href: '/mentor/interventions', icon: MessageSquare },
+  { name: 'My Discipline', href: '/mentor/discipline', icon: ShieldAlert },
 ];
 
 export function MentorSidebar() {

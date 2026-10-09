@@ -10,6 +10,7 @@ class DefaultResponse(BaseModel):
     is_excused: bool
     excused_reason: Optional[str]
     created_at: datetime
+    acknowledged_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -20,6 +21,7 @@ class WarningResponse(BaseModel):
     level: str
     reason: str
     created_at: datetime
+    acknowledged_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -31,6 +33,7 @@ class SuspensionResponse(BaseModel):
     is_active: bool
     started_at: datetime
     ended_at: Optional[datetime]
+    acknowledged_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

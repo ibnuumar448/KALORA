@@ -10,8 +10,8 @@ export default function ApplyLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
+    <div className="min-h-screen bg-slate-50 print:bg-white">
+      <header className="bg-white border-b border-slate-200 print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-4">
@@ -28,7 +28,7 @@ export default function ApplyLayout({
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <main className="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8 print:p-0 print:max-w-none print:mx-0">
         {children}
       </main>
     </div>

@@ -45,7 +45,7 @@ export default function ApplicationDetailPage({ params }: { params: Promise<{ id
   const viewFile = async (url: string) => {
     try {
       const response = await api.get(`/applications/documents/${url}`, { responseType: 'blob' });
-      const mimeType = response.headers['content-type'] || 'application/pdf';
+      const mimeType = (response.headers['content-type'] as string) || 'application/pdf';
       const blob = new Blob([response.data], { type: mimeType });
       const blobUrl = window.URL.createObjectURL(blob);
       window.open(blobUrl, '_blank');

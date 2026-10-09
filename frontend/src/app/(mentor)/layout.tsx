@@ -19,7 +19,6 @@ export default function MentorLayout({ children }: { children: React.ReactNode }
     <ProtectedRoute allowedRoles={['mentor']}>
       <SidebarProvider>
         <div className="flex h-screen w-full bg-slate-50 font-sans overflow-hidden relative">
-          <MentorSidebar />
           <div className="flex flex-1 flex-col overflow-hidden">
             <MentorHeader />
             <main className="flex-1 overflow-y-auto bg-slate-50 p-6 lg:p-8">

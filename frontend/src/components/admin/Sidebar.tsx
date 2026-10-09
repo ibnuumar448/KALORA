@@ -13,7 +13,8 @@ const navigation = [
   { name: 'Curriculum Mgmt', href: '/admin/curriculum', icon: BookOpen },
   { name: 'Assessments', href: '/admin/assessments', icon: ClipboardList },
   { name: 'Mentorship', href: '/admin/mentorship', icon: Users },
-  { name: 'Disciplinary', href: '/admin/disciplinary', icon: ShieldAlert, requireSuperAdmin: true },
+  { name: 'Disciplinary Mgmt', href: '/admin/disciplinary', icon: ShieldAlert, requireSuperAdmin: true },
+  { name: 'My Discipline', href: '/admin/my-discipline', icon: ShieldAlert, requireSuperAdmin: false },
   { name: 'Settings', href: '/admin/settings', icon: Settings, requireSuperAdmin: true },
 ];
 

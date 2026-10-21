@@ -104,6 +104,8 @@ def create_user(
         email=user_in.email,
         full_name=user_in.full_name,
         password_hash=pwd_context.hash(user_in.password),
+        is_email_verified=True,
+        email_verified_at=func.now(),
     )
     db.add(new_user)
     db.commit()

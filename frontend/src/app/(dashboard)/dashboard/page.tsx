@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Target, Clock, Trophy, Printer, MessageSquare, User as UserIcon } from 'lucide-react';
+import { Printer, MessageSquare, User as UserIcon } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -17,19 +18,16 @@ export default function DashboardPage() {
 
   // Mentorship states
   const [showMessaging, setShowMessaging] = useState(false);
-  const [showSupport, setShowSupport] = useState(false);
+  const [chatAssignment, setChatAssignment] = useState<{ assignmentId: string; mentorName: string } | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [supportCategory, setSupportCategory] = useState('Academic difficulty');
-  const [supportText, setSupportText] = useState('');
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [submittingSupport, setSubmittingSupport] = useState(false);
 
-  const fetchMessages = async () => {
-    if (!mentorData?.current_mentor?.assignment_id) return;
+  const fetchMessages = async (assignmentId: string) => {
+    if (!assignmentId) return;
     setLoadingMessages(true);
     try {
-      const res = await api.get(`/mentorship/assignments/${mentorData.current_mentor.assignment_id}/messages`);
+      const res = await api.get(`/mentorship/assignments/${assignmentId}/messages`);
       setMessages(res.data);
     } catch (err) {
       console.error(err);
@@ -39,8 +37,11 @@ export default function DashboardPage() {
   };
 
   const handleOpenMessaging = async () => {
+    const currentMentor = mentorData?.current_mentor;
+    if (!currentMentor?.assignment_id) return;
+    setChatAssignment({ assignmentId: currentMentor.assignment_id, mentorName: currentMentor.mentor_name });
     setShowMessaging(true);
-    fetchMessages();
+    fetchMessages(currentMentor.assignment_id);
     try {
       await api.post('/notifications/read-type?type=mentorship_message');
       window.dispatchEvent(new Event('refreshNotifications'));
@@ -48,33 +49,15 @@ export default function DashboardPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !mentorData?.current_mentor?.assignment_id) return;
+    if (!newMessage.trim() || !chatAssignment?.assignmentId) return;
     try {
-      await api.post(`/mentorship/assignments/${mentorData.current_mentor.assignment_id}/messages`, {
+      await api.post(`/mentorship/assignments/${chatAssignment.assignmentId}/messages`, {
         content: newMessage
       });
       setNewMessage('');
-      fetchMessages();
+      fetchMessages(chatAssignment.assignmentId);
     } catch (err) {
       alert("Failed to send message");
-    }
-  };
-
-  const handleRequestSupport = async () => {
-    if (!supportText.trim()) return;
-    setSubmittingSupport(true);
-    try {
-      await api.post('/students/me/support-requests', {
-        category: supportCategory,
-        message: supportText
-      });
-      setSupportText('');
-      setShowSupport(false);
-      alert('Support request submitted successfully');
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to submit request');
-    } finally {
-      setSubmittingSupport(false);
     }
   };
 
@@ -108,6 +91,30 @@ export default function DashboardPage() {
     fetchOverview();
   }, []);
 
+  useEffect(() => {
+    const openNotifiedConversation = (event: Event) => {
+      const eventAssignmentId = (event as CustomEvent<{ assignmentId: string }>).detail?.assignmentId;
+      const assignmentId = eventAssignmentId || window.sessionStorage.getItem('kalora_pending_mentor_chat') || undefined;
+      if (!assignmentId || !mentorData) return;
+      const history = mentorData.history || [];
+      const assignment = [mentorData.current_mentor, ...history].find(item => item?.assignment_id === assignmentId || item?.id === assignmentId);
+      if (!assignment) return;
+      window.sessionStorage.removeItem('kalora_pending_mentor_chat');
+      const mentorName = assignment.mentor_name || mentorData.current_mentor?.mentor_name || 'your mentor';
+      setChatAssignment({ assignmentId, mentorName });
+      setShowMessaging(true);
+      void fetchMessages(assignmentId);
+    };
+    window.addEventListener('openMentorChat', openNotifiedConversation);
+    return () => window.removeEventListener('openMentorChat', openNotifiedConversation);
+  }, [mentorData]);
+
+  useEffect(() => {
+    if (!loading && mentorData && window.sessionStorage.getItem('kalora_pending_mentor_chat')) {
+      window.dispatchEvent(new CustomEvent('openMentorChat', { detail: { assignmentId: window.sessionStorage.getItem('kalora_pending_mentor_chat') } }));
+    }
+  }, [loading, mentorData]);
+
   if (loading) {
     return (
       <div className="space-y-6 max-w-7xl mx-auto">
@@ -115,23 +122,16 @@ export default function DashboardPage() {
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-full" />)}
-        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <Skeleton className="h-64 w-full" />
           <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-40 w-full md:col-span-2" />
         </div>
       </div>
     );
   }
 
-  // Fallback defaults if progress data is missing but user is admitted
-  const stats = data || {
-    total_modules: 0, modules_completed: 0, average_score: 0, study_time_hours: 0, rank: 'N/A', recent_assessments: []
-  };
-
-  const percentCompleted = stats.total_modules > 0 ? Math.round((stats.modules_completed / stats.total_modules) * 100) : 0;
+  const recentAssessments = data?.recent_assessments || [];
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto print:p-0">
@@ -141,56 +141,13 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-slate-900">Welcome back, {user?.full_name?.split(' ')[0] || 'Student'}!</h2>
-            <p className="text-slate-500 mt-1">Here is an overview of your academic progress.</p>
+            <p className="text-slate-500 mt-1">Stay on track with your learning, assessments, and mentorship.</p>
           </div>
           {app && app.status === 'accepted' && (
             <Button onClick={() => window.print()} className="flex items-center gap-2">
               <Printer className="w-4 h-4" /> Print Admission Letter
             </Button>
           )}
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">Modules Completed</CardTitle>
-              <BookOpen className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{stats.modules_completed} / {stats.total_modules}</div>
-              <p className="text-xs text-slate-500 mt-1">{percentCompleted}% of curriculum</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">Average Score</CardTitle>
-              <Target className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{stats.average_score}%</div>
-              <p className="text-xs text-green-600 mt-1">Based on mastery</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">Study Time</CardTitle>
-              <Clock className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{stats.study_time_hours}h</div>
-              <p className="text-xs text-slate-500 mt-1">This month</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">Rank</CardTitle>
-              <Trophy className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900">{stats.rank}</div>
-              <p className="text-xs text-slate-500 mt-1">In your cohort</p>
-            </CardContent>
-          </Card>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 mt-6">
@@ -201,10 +158,10 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {(!stats.recent_assessments || stats.recent_assessments.length === 0) ? (
+                {recentAssessments.length === 0 ? (
                   <p className="text-sm text-slate-500">No recent assessments found.</p>
                 ) : (
-                  stats.recent_assessments.map((item: any, i: number) => (
+                  recentAssessments.map((item: any, i: number) => (
                     <div key={i} className="flex items-center justify-between border-b border-slate-100 pb-4 last:border-0 last:pb-0">
                       <div>
                         <p className="text-sm font-medium text-slate-900">{item.name}</p>
@@ -220,28 +177,16 @@ export default function DashboardPage() {
 
           <Card className="col-span-1">
             <CardHeader>
-              <CardTitle>Up Next</CardTitle>
-              <CardDescription>Continue where you left off.</CardDescription>
+              <CardTitle>Continue Learning</CardTitle>
+              <CardDescription>Access your syllabus and learning resources.</CardDescription>
             </CardHeader>
-            <CardContent>
-              {stats.up_next ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded bg-emerald-100 flex items-center justify-center">
-                      <BookOpen className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-900">{stats.up_next.name}</h4>
-                      <p className="text-xs text-slate-500 mt-1">{stats.up_next.type}</p>
-                    </div>
-                  </div>
-                  <button className="mt-4 w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover transition-colors">
-                    Resume Topic
-                  </button>
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">You are all caught up.</p>
-              )}
+            <CardContent className="flex items-start">
+              <Link
+                href="/dashboard/curriculum"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                Go to Curriculum
+              </Link>
             </CardContent>
           </Card>
 
@@ -263,9 +208,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button variant="outline" className="w-full sm:w-auto text-slate-700" onClick={() => setShowSupport(true)}>
-                      Request Support
-                    </Button>
                     <Button className="w-full sm:w-auto gap-2" onClick={handleOpenMessaging}>
                       <MessageSquare className="w-4 h-4" /> Message Mentor
                     </Button>
@@ -288,7 +230,7 @@ export default function DashboardPage() {
           <Card className="w-full max-w-lg shadow-xl border-0 flex flex-col h-[600px] max-h-screen">
             <CardHeader className="border-b border-slate-100 flex-shrink-0 flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Message {mentorData?.current_mentor?.mentor_name}</CardTitle>
+                <CardTitle>Message {chatAssignment?.mentorName || mentorData?.current_mentor?.mentor_name}</CardTitle>
                 <CardDescription>Direct communication with your active mentor</CardDescription>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setShowMessaging(false)}>Close</Button>
@@ -320,48 +262,6 @@ export default function DashboardPage() {
               />
               <Button onClick={handleSendMessage}>Send</Button>
             </div>
-          </Card>
-        </div>
-      )}
-
-      {showSupport && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <Card className="w-full max-w-lg shadow-xl border-0">
-            <CardHeader className="border-b border-slate-100">
-              <CardTitle>Request Support</CardTitle>
-              <CardDescription>Send a structured help request to your mentor</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">Category</label>
-                <select 
-                  value={supportCategory}
-                  onChange={(e) => setSupportCategory(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option>Academic difficulty</option>
-                  <option>Subject difficulty</option>
-                  <option>Study planning</option>
-                  <option>General guidance</option>
-                  <option>Other</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">Details</label>
-                <textarea 
-                  value={supportText}
-                  onChange={(e) => setSupportText(e.target.value)}
-                  className="flex min-h-[120px] w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Explain what you need help with..."
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowSupport(false)} disabled={submittingSupport}>Cancel</Button>
-                <Button onClick={handleRequestSupport} disabled={submittingSupport}>
-                  {submittingSupport ? 'Submitting...' : 'Submit Request'}
-                </Button>
-              </div>
-            </CardContent>
           </Card>
         </div>
       )}

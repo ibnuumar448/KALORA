@@ -3,7 +3,7 @@ from sqlalchemy import func, or_
 from uuid import UUID
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
-from app.models.mentorship import MentorAssignment, MentorshipMessage, SupportRequest
+from app.models.mentorship import MentorAssignment, MentorshipMessage
 from app.models.user import User
 from app.models.rbac import Role, UserRole
 from app.models.admission import Application
@@ -13,7 +13,6 @@ from app.schemas.mentorship import (
     MentorshipStatsResponse, MentorListResponse, AssignedStudentResponse,
     UnassignedStudentResponse, AssignmentHistoryResponse, StudentMentorResponse,
     StudentMentorshipHistoryResponse, MentorshipMessageResponse,
-    SupportRequestResponse
 )
 from app.services.notification import NotificationService
 
@@ -358,7 +357,8 @@ class MentorshipService:
             user_id=recipient_id,
             title="New Message",
             message=f"You have a new message from {sender_name}",
-            type="mentorship_message"
+            type="mentorship_message",
+            data={"assignment_id": str(assignment.id)}
         )
         
         return MentorshipMessageResponse(
@@ -371,68 +371,3 @@ class MentorshipService:
             read_at=new_msg.read_at
         )
 
-    def create_support_request(self, student_id: UUID, category: str, message: str) -> SupportRequestResponse:
-        assignment = self.db.query(MentorAssignment).filter(
-            MentorAssignment.student_id == student_id,
-            MentorAssignment.status == "active"
-        ).first()
-        
-        if not assignment:
-            raise HTTPException(status_code=400, detail="You do not have an active mentor assignment.")
-            
-        new_req = SupportRequest(
-            assignment_id=assignment.id,
-            student_id=student_id,
-            category=category,
-            message=message,
-            status="open",
-            created_at=datetime.now(timezone.utc)
-        )
-        self.db.add(new_req)
-        self.db.commit()
-        self.db.refresh(new_req)
-        
-        # Trigger Notification
-        notif_svc = NotificationService(self.db)
-        notif_svc.create_notification(
-            user_id=assignment.mentor_id,
-            title="New Support Request",
-            message=f"{new_req.student.full_name if new_req.student else 'A student'} needs help: {category}",
-            type="support_request"
-        )
-        
-        return SupportRequestResponse(
-            id=new_req.id,
-            assignment_id=new_req.assignment_id,
-            student_id=new_req.student_id,
-            student_name=new_req.student.full_name if new_req.student else "Unknown",
-            category=new_req.category,
-            message=new_req.message,
-            status=new_req.status,
-            created_at=new_req.created_at,
-            resolved_at=new_req.resolved_at
-        )
-        
-    def get_support_requests(self, user_id: UUID, is_mentor: bool = False) -> list[SupportRequestResponse]:
-        query = self.db.query(SupportRequest).join(MentorAssignment)
-        
-        if is_mentor:
-            query = query.filter(MentorAssignment.mentor_id == user_id)
-        else:
-            query = query.filter(SupportRequest.student_id == user_id)
-            
-        requests = query.order_by(SupportRequest.created_at.desc()).all()
-        
-        return [
-            SupportRequestResponse(
-                id=r.id,
-                assignment_id=r.assignment_id,
-                student_id=r.student_id,
-                student_name=r.student.full_name if r.student else "Unknown",
-                category=r.category,
-                message=r.message,
-                status=r.status,
-                created_at=r.created_at,
-                resolved_at=r.resolved_at
-            ) for r in requests
-        ]

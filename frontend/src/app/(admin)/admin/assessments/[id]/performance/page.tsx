@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
-import { ArrowLeft, CheckCircle, Clock, FileText, Send, Users, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, FileText, Send, Users, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -12,36 +13,43 @@ import { toast } from 'sonner';
 export default function AssessmentPerformancePage() {
   const params = useParams();
   const id = params.id as string;
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<{
+    assessment_name: string; total_students: number; scored_students: number; average_score: number;
+    pass_rate: number; release_results_at?: string | null;
+    students: Array<{ student_assessment_id: string; student_name: string; admission_number: string; status: string; score: number | null; passed: boolean | null }>;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
 
-  const fetchPerformance = async () => {
+  const fetchPerformance = useCallback(async () => {
     try {
       const res = await api.get(`/assessments/${id}/performance`);
       setData(res.data);
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to load performance data");
+    } catch (error: unknown) {
+      const detail = axios.isAxiosError(error) ? error.response?.data?.detail : null;
+      toast.error(typeof detail === 'string' ? detail : 'Failed to load performance data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (id) {
-      fetchPerformance();
+      const timer = window.setTimeout(() => { void fetchPerformance(); }, 0);
+      return () => window.clearTimeout(timer);
     }
-  }, [id]);
+  }, [fetchPerformance, id]);
 
   const handlePublish = async () => {
     if (!confirm("Are you sure you want to publish results? Students will immediately be able to see their scores.")) return;
     setPublishing(true);
     try {
-      await api.post(`/assessments/${id}/publish`);
+      await api.post(`/assessments/${id}/release-results`);
       toast.success("Results published successfully!");
       fetchPerformance();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to publish results");
+    } catch (error: unknown) {
+      const detail = axios.isAxiosError(error) ? error.response?.data?.detail : null;
+      toast.error(typeof detail === 'string' ? detail : 'Failed to release results');
     } finally {
       setPublishing(false);
     }
@@ -63,7 +71,7 @@ export default function AssessmentPerformancePage() {
     );
   }
 
-  const isPublished = !!data.release_results_at;
+  const isPublished = Boolean(data.release_results_at && new Date(data.release_results_at) <= new Date());
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-6">
@@ -82,12 +90,12 @@ export default function AssessmentPerformancePage() {
           {isPublished ? (
             <div className="flex items-center text-green-700 bg-green-50 border border-green-200 px-4 py-2 rounded-md font-medium text-sm">
               <CheckCircle className="w-4 h-4 mr-2" />
-              Results Published on {new Date(data.release_results_at).toLocaleDateString()}
+              Results Released on {new Date(data.release_results_at!).toLocaleDateString()}
             </div>
           ) : (
             <Button onClick={handlePublish} disabled={publishing}>
               <Send className="w-4 h-4 mr-2" />
-              {publishing ? 'Publishing...' : 'Publish Results'}
+              {publishing ? 'Releasing...' : data.release_results_at ? `Release now (scheduled ${new Date(data.release_results_at).toLocaleString()})` : 'Release Results'}
             </Button>
           )}
         </div>
@@ -150,7 +158,7 @@ export default function AssessmentPerformancePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {data.students.map((student: any) => (
+                {data.students.map((student) => (
                   <tr key={student.student_assessment_id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-900">{student.student_name}</td>
                     <td className="px-6 py-4 text-slate-500">{student.admission_number}</td>

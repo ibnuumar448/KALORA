@@ -14,9 +14,15 @@ class AssessmentType(str, enum.Enum):
     mock = "mock"
     final = "final"
 
+class AssessmentStatus(str, enum.Enum):
+    draft = "draft"
+    published = "published"
+    closed = "closed"
+
 class AttemptStatus(str, enum.Enum):
     in_progress = "in_progress"
     completed = "completed"
+    auto_submitted = "auto_submitted"
     abandoned = "abandoned"
 
 class StudentAssessmentStatus(str, enum.Enum):
@@ -41,6 +47,7 @@ class QuestionBank(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     subject_id = Column(UUID(as_uuid=True), ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False)
+    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id", ondelete="SET NULL"), nullable=True)
     
     text = Column(Text, nullable=False)
     options = Column(JSON, nullable=False) # e.g. ["A", "B", "C", "D"] or [{"id": "A", "text": "Option A"}]
@@ -51,6 +58,7 @@ class QuestionBank(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     subject = relationship("Subject")
+    topic = relationship("Topic")
 
 class Assessment(Base):
     __tablename__ = "assessments"
@@ -58,6 +66,8 @@ class Assessment(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     name = Column(String(255), nullable=False)
     type = Column(SQLEnum(AssessmentType), nullable=False)
+    status = Column(String(20), nullable=False, default=AssessmentStatus.draft.value)
+    subject_id = Column(UUID(as_uuid=True), ForeignKey("subjects.id", ondelete="SET NULL"), nullable=True)
     
     # Target Audience
     cohort_id = Column(UUID(as_uuid=True), ForeignKey("cohorts.id", ondelete="SET NULL"), nullable=True)
@@ -79,9 +89,11 @@ class Assessment(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     cohort = relationship("Cohort")
+    subject = relationship("Subject")
     topic = relationship("Topic")
     module = relationship("Module")
-    questions = relationship("AssessmentQuestion", back_populates="assessment", cascade="all, delete-orphan")
+    questions = relationship("AssessmentQuestion", back_populates="assessment", cascade="all, delete-orphan", order_by="AssessmentQuestion.order_index")
+    topics = relationship("AssessmentTopic", back_populates="assessment", cascade="all, delete-orphan", order_by="AssessmentTopic.order_index")
     student_assessments = relationship("StudentAssessment", back_populates="assessment", cascade="all, delete-orphan")
 
 class StudentAssessment(Base):
@@ -130,12 +142,24 @@ class AssessmentQuestion(Base):
     assessment = relationship("Assessment", back_populates="questions")
     question = relationship("QuestionBank")
 
+class AssessmentTopic(Base):
+    __tablename__ = "assessment_topics"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    assessment_id = Column(UUID(as_uuid=True), ForeignKey("assessments.id", ondelete="CASCADE"), nullable=False)
+    topic_id = Column(UUID(as_uuid=True), ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
+    order_index = Column(Integer, default=0, nullable=False)
+
+    assessment = relationship("Assessment", back_populates="topics")
+    topic = relationship("Topic")
+
 class AssessmentAttempt(Base):
     __tablename__ = "assessment_attempts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
     student_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     assessment_id = Column(UUID(as_uuid=True), ForeignKey("assessments.id", ondelete="CASCADE"), nullable=False)
+    is_makeup = Column(Boolean, nullable=False, default=False)
     
     status = Column(SQLEnum(AttemptStatus), default=AttemptStatus.in_progress, nullable=False)
     score = Column(Float, nullable=True) # Populated on completion

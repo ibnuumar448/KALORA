@@ -19,7 +19,6 @@ class MentorListResponse(BaseModel):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
-
 class AssignedStudentResponse(BaseModel):
     id: UUID
     full_name: str
@@ -114,19 +113,3 @@ class MentorshipMessageResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class SupportRequestCreate(BaseModel):
-    category: str
-    message: str
-
-class SupportRequestResponse(BaseModel):
-    id: UUID
-    assignment_id: UUID
-    student_id: UUID
-    student_name: str
-    category: str
-    message: str
-    status: str
-    created_at: datetime
-    resolved_at: Optional[datetime]
-
-    model_config = ConfigDict(from_attributes=True)

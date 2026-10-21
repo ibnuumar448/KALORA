@@ -14,7 +14,7 @@ const navigation = [
   { name: 'Assessments', href: '/admin/assessments', icon: ClipboardList },
   { name: 'Mentorship', href: '/admin/mentorship', icon: Users },
   { name: 'Disciplinary Mgmt', href: '/admin/disciplinary', icon: ShieldAlert, requireSuperAdmin: true },
-  { name: 'My Discipline', href: '/admin/my-discipline', icon: ShieldAlert, requireSuperAdmin: false },
+  { name: 'My Discipline', href: '/admin/my-discipline', icon: ShieldAlert, requireSuperAdmin: false, hideForSuperAdmin: true },
   { name: 'Settings', href: '/admin/settings', icon: Settings, requireSuperAdmin: true },
 ];
 
@@ -27,7 +27,9 @@ export function AdminSidebar() {
 
   // Filter navigation based on role
   const visibleNavigation = navigation.filter(
-    (item) => !item.requireSuperAdmin || isSuperAdmin
+    (item) =>
+      (!item.requireSuperAdmin || isSuperAdmin) &&
+      !(isSuperAdmin && 'hideForSuperAdmin' in item && item.hideForSuperAdmin)
   );
 
   const sidebarClasses = cn(

@@ -1,5 +1,6 @@
 import sys
 import os
+from sqlalchemy import func
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -27,7 +28,9 @@ def seed_admin():
             admin_user = User(
                 email="saminu@gmail.com",
                 full_name="Saminu Umar",
-                password_hash=pwd_context.hash("admin123")
+                password_hash=pwd_context.hash("admin123"),
+                is_email_verified=True,
+                email_verified_at=func.now(),
             )
             db.add(admin_user)
             db.commit()

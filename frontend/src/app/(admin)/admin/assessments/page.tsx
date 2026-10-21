@@ -15,6 +15,8 @@ import Link from 'next/link';
 export default function AssessmentsManagementPage() {
   const [activeTab, setActiveTab] = useState<'assessments' | 'question-bank' | 'makeup-requests' | 'results'>('assessments');
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [cohortFilter, setCohortFilter] = useState('all');
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -62,18 +64,17 @@ export default function AssessmentsManagementPage() {
         </button>
       </div>
 
-      {activeTab === 'assessments' && <AssessmentsTab />}
+      {activeTab === 'assessments' && <AssessmentsTab onEdit={setEditingId} />}
       {activeTab === 'question-bank' && <QuestionBankTab />}
       {activeTab === 'makeup-requests' && <MakeupRequestsTab />}
       {activeTab === 'results' && <ResultsTab />}
 
       <AssessmentCreateModal 
-        open={createOpen} 
-        onOpenChange={setCreateOpen} 
+        open={createOpen || !!editingId}
+        assessmentId={editingId}
+        onOpenChange={(open) => { if (!open) { setCreateOpen(false); setEditingId(null); } }}
         onSuccess={() => {
-          // just force a re-render or let the tab fetch
-          setCreateOpen(false);
-          window.location.reload(); // Simple MVP refresh
+          window.dispatchEvent(new Event('assessmentDraftChanged'));
         }} 
       />
     </div>
@@ -83,7 +84,7 @@ export default function AssessmentsManagementPage() {
 // ----------------------------------------------------------------------
 // Assessments Tab
 // ----------------------------------------------------------------------
-function AssessmentsTab() {
+function AssessmentsTab({ onEdit }: { onEdit: (id: string) => void }) {
   const [assessments, setAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -97,10 +98,24 @@ function AssessmentsTab() {
 
   useEffect(() => {
     fetchAssessments();
+    window.addEventListener('assessmentDraftChanged', fetchAssessments);
+    return () => window.removeEventListener('assessmentDraftChanged', fetchAssessments);
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this assessment? This will also remove it for all students.")) return;
+    const assessment = assessments.find(item => item.id === id);
+    if (assessment?.status !== 'draft') {
+      if (!confirm("Close this assessment? Historical student results will be preserved.")) return;
+      try {
+        await api.post(`/assessments/${id}/close`);
+        toast.success("Assessment closed. Historical results were preserved.");
+        fetchAssessments();
+      } catch (err: any) {
+        toast.error(err.response?.data?.detail || "Failed to close assessment");
+      }
+      return;
+    }
+    if (!confirm("Delete this draft assessment?")) return;
     try {
       await api.delete(`/assessments/${id}`);
       toast.success("Assessment deleted successfully");
@@ -139,6 +154,7 @@ function AssessmentsTab() {
                   <th className="px-6 py-4 text-left font-semibold">Name</th>
                   <th className="px-6 py-4 text-left font-semibold">Type</th>
                   <th className="px-6 py-4 text-left font-semibold">Questions</th>
+                  <th className="px-6 py-4 text-left font-semibold">Status</th>
                   <th className="px-6 py-4 text-left font-semibold">Duration</th>
                   <th className="px-6 py-4 text-left font-semibold">Actions</th>
                 </tr>
@@ -153,11 +169,12 @@ function AssessmentsTab() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-slate-500">{a.question_count}</td>
+                    <td className="px-6 py-4"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs capitalize">{a.status}</span></td>
                     <td className="px-6 py-4 text-slate-500">{a.duration_minutes || 'Untimed'}</td>
                     <td className="px-6 py-4 flex items-center gap-2">
-                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(a.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {a.status === 'draft' && <Button size="sm" variant="outline" onClick={() => onEdit(a.id)}>Edit Draft</Button>}
+                      {a.status === 'draft' && <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDelete(a.id)}><Trash2 className="w-4 h-4" /></Button>}
+                      {a.status === 'published' && <Button size="sm" variant="outline" onClick={() => handleDelete(a.id)}>Close</Button>}
                     </td>
                   </tr>
                 ))}
@@ -176,6 +193,7 @@ function AssessmentsTab() {
 function QuestionBankTab() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<any | null>(null);
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
@@ -281,7 +299,7 @@ function QuestionBankTab() {
                   </td>
                   <td className="px-6 py-4 text-slate-900 font-medium">{q.subject_name}</td>
                   <td className="px-6 py-4 text-slate-600 max-w-md truncate" title={q.text}>{q.text}</td>
-                  <td className="px-6 py-4 text-slate-500 capitalize">{q.difficulty || 'N/A'}</td>
+                  <td className="px-6 py-4 text-slate-500 capitalize">{q.difficulty || 'N/A'} <Button size="sm" variant="ghost" onClick={() => setEditingQuestion(q)}>Edit</Button></td>
                 </tr>
               ))}
               {questions.length === 0 && (
@@ -297,6 +315,12 @@ function QuestionBankTab() {
         open={addModalOpen} 
         onOpenChange={setAddModalOpen} 
         onSuccess={fetchQuestions} 
+      />
+      <AddQuestionModal
+        open={!!editingQuestion}
+        question={editingQuestion}
+        onOpenChange={(open) => { if (!open) setEditingQuestion(null); }}
+        onSuccess={fetchQuestions}
       />
       <BulkUploadModal 
         open={bulkModalOpen} 
@@ -394,16 +418,21 @@ function MakeupRequestsTab() {
 // ----------------------------------------------------------------------
 function ResultsTab() {
   const [assessments, setAssessments] = useState<any[]>([]);
+  const [cohorts, setCohorts] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<string>('');
+  const [cohortFilter, setCohortFilter] = useState('all');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     api.get('/assessments').then(res => {
-      setAssessments(res.data);
-      if (res.data.length > 0) setSelectedId(res.data[0].id);
+      const publishedAssessments = res.data.filter((assessment: any) => assessment.status !== 'draft');
+      setAssessments(publishedAssessments);
+      if (publishedAssessments.length > 0) setSelectedId(publishedAssessments[0].id);
     }).catch(console.error);
+    api.get('/curriculum/cohorts').then(res => setCohorts(res.data)).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -422,7 +451,7 @@ function ResultsTab() {
     if (!confirm("Are you sure you want to publish results? Students will immediately be able to see their scores.")) return;
     setPublishing(true);
     try {
-      await api.post(`/assessments/${selectedId}/publish`);
+      await api.post(`/assessments/${selectedId}/release-results`);
       toast.success("Results published successfully!");
       const res = await api.get(`/assessments/${selectedId}/performance`);
       setData(res.data);
@@ -433,7 +462,7 @@ function ResultsTab() {
     }
   };
 
-  const isPublished = data && !!data.release_results_at;
+  const isPublished = data?.release_results_at && new Date(data.release_results_at) <= new Date();
 
   return (
     <Card className="mt-6">
@@ -443,7 +472,9 @@ function ResultsTab() {
             <CardTitle>Assessment Results & Performance</CardTitle>
             <CardDescription>Select an assessment to view student grades.</CardDescription>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <select aria-label="Filter assessments by status" className="rounded-md border px-3 py-2 text-sm" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="not_started">Not attempted</option><option value="in_progress">In progress</option><option value="submitted">Submitted</option><option value="missed">Missed</option></select>
+            <select aria-label="Filter assessments by cohort" className="rounded-md border px-3 py-2 text-sm" value={cohortFilter} onChange={event => setCohortFilter(event.target.value)}><option value="all">All cohorts</option>{cohorts.map(cohort => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}</select>
             <select
               className="px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
               value={selectedId}
@@ -464,7 +495,7 @@ function ResultsTab() {
               ) : (
                 <Button onClick={handlePublish} disabled={publishing} size="sm">
                   <Send className="w-4 h-4 mr-2" />
-                  {publishing ? 'Publishing...' : 'Publish'}
+                  {publishing ? 'Releasing...' : data?.release_results_at ? `Release now (scheduled ${new Date(data.release_results_at).toLocaleString()})` : 'Release Results'}
                 </Button>
               )
             )}
@@ -515,7 +546,7 @@ function ResultsTab() {
                       </td>
                     </tr>
                   ) : (
-                    data.students.map((student: any) => (
+                    data.students.filter((student: any) => (statusFilter === 'all' || student.status === statusFilter || (statusFilter === 'submitted' && ['auto_submitted', 'makeup_submitted'].includes(student.status))) && (cohortFilter === 'all' || student.cohort_id === cohortFilter)).map((student: any) => (
                       <tr key={student.student_assessment_id} className="hover:bg-slate-50">
                         <td className="px-6 py-3 font-medium text-slate-900">{student.student_name}</td>
                         <td className="px-6 py-3 text-slate-500">{student.admission_number}</td>
@@ -529,7 +560,7 @@ function ResultsTab() {
                           </span>
                         </td>
                         <td className="px-6 py-3 font-semibold">
-                          {student.score !== null ? `${student.score.toFixed(1)}%` : '-'}
+                          {student.score !== null ? `${student.score.toFixed(1)}% · ${student.passed ? 'Passed' : 'Failed'}` : '—'}
                         </td>
                       </tr>
                     ))

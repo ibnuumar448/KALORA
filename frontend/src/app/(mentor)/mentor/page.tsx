@@ -3,11 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, AlertTriangle, MessageSquarePlus, MessageSquare, HelpCircle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { MessageSquarePlus, MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+
+type MentorAssessment = { student_id: string; student_name: string; latest_assessment?: { assessment_name: string; status: string; score?: number | null; passed?: boolean | null; result_released?: boolean } | null };
 
 export default function MentorDashboard() {
+  const router = useRouter();
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -16,11 +19,12 @@ export default function MentorDashboard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [supportRequests, setSupportRequests] = useState<any[]>([]);
   const [showMessagingFor, setShowMessagingFor] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [assessmentRows, setAssessmentRows] = useState<MentorAssessment[]>([]);
+  const [assessmentError, setAssessmentError] = useState('');
 
   const fetchMessages = async (assignmentId: string) => {
     if (!assignmentId) return;
@@ -60,12 +64,8 @@ export default function MentorDashboard() {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        const [studentsRes, supportRes] = await Promise.all([
-          api.get('/mentors/me/students'),
-          api.get('/mentors/me/support-requests')
-        ]);
+        const studentsRes = await api.get('/mentors/me/students');
         setStudents(studentsRes.data);
-        setSupportRequests(supportRes.data);
       } catch (err: any) {
         console.error('Failed to fetch assigned students', err);
         setError(err.response?.data?.detail || 'Unable to load students');
@@ -74,6 +74,36 @@ export default function MentorDashboard() {
       }
     };
     fetchStudents();
+  }, []);
+
+  useEffect(() => {
+    const openNotifiedConversation = (event: Event) => {
+      const eventAssignmentId = (event as CustomEvent<{ assignmentId: string }>).detail?.assignmentId;
+      const assignmentId = eventAssignmentId || window.sessionStorage.getItem('kalora_pending_mentee_chat') || undefined;
+      if (!assignmentId) return;
+      const student = students.find(item => item.assignment_id === assignmentId);
+      if (!student) return;
+      window.sessionStorage.removeItem('kalora_pending_mentee_chat');
+      setShowMessagingFor(student);
+      void fetchMessages(assignmentId);
+    };
+    window.addEventListener('openMenteeChat', openNotifiedConversation);
+    return () => window.removeEventListener('openMenteeChat', openNotifiedConversation);
+  }, [students]);
+
+  useEffect(() => {
+    if (!loading && students.length >= 0 && window.sessionStorage.getItem('kalora_pending_mentee_chat')) {
+      window.dispatchEvent(new CustomEvent('openMenteeChat', { detail: { assignmentId: window.sessionStorage.getItem('kalora_pending_mentee_chat') } }));
+    }
+  }, [loading, students]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      api.get('/assessments/mentors/me/assessment-results')
+        .then(response => setAssessmentRows(response.data))
+        .catch(err => setAssessmentError(err.response?.data?.detail || 'Assessment progress could not be loaded.'));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const handleSaveNote = async () => {
@@ -179,53 +209,20 @@ export default function MentorDashboard() {
 
       <Card>
         <CardHeader className="pb-3 border-b border-slate-100">
-          <CardTitle>Support Requests</CardTitle>
-          <CardDescription>Requests submitted by your mentees requiring attention.</CardDescription>
+          <CardTitle>Weekly Assessment Progress</CardTitle>
+          <CardDescription>Latest weekly assessment for your active mentees.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {supportRequests.length === 0 ? (
-            <div className="flex items-center justify-center p-12 text-slate-500 border-t border-dashed border-slate-200 bg-slate-50">
-              <p>No active support requests.</p>
-            </div>
-          ) : (
+          {assessmentError ? <div role="alert" className="p-5 text-sm text-red-700">{assessmentError}</div> : assessmentRows.length === 0 ? <div className="p-8 text-center text-sm text-slate-500">No weekly assessment activity yet.</div> : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-500 uppercase bg-slate-50/50">
-                  <tr>
-                    <th className="px-6 py-4 font-medium">Student Name</th>
-                    <th className="px-6 py-4 font-medium">Category</th>
-                    <th className="px-6 py-4 font-medium">Message</th>
-                    <th className="px-6 py-4 font-medium">Status</th>
-                    <th className="px-6 py-4 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {supportRequests.map((req) => (
-                    <tr key={req.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-900">{req.student_name}</td>
-                      <td className="px-6 py-4 text-slate-500">{req.category}</td>
-                      <td className="px-6 py-4 text-slate-600 max-w-xs truncate">{req.message}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${req.status === 'open' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                          {req.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-primary"
-                          onClick={() => {
-                             const st = students.find(s => s.student_id === req.student_id);
-                             if(st) handleOpenMessaging(st);
-                          }}
-                        >
-                          Message Mentee
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Mentee</th><th className="px-5 py-3">Latest assessment</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Score</th><th className="px-5 py-3">Result</th><th className="px-5 py-3">History</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">{assessmentRows.map(row => {
+                  const latest = row.latest_assessment;
+                  const submitted = latest && ['submitted', 'auto_submitted', 'makeup_submitted'].includes(latest.status);
+                  const outcome = latest?.passed == null ? submitted && !latest.result_released ? 'Awaiting results' : '—' : latest.passed ? 'Passed' : 'Failed';
+                  return <tr key={row.student_id}><td className="px-5 py-3 font-medium">{row.student_name}</td><td className="px-5 py-3">{latest?.assessment_name || '—'}</td><td className="px-5 py-3">{(latest?.status || 'not_started').replaceAll('_', ' ')}</td><td className="px-5 py-3">{latest?.score != null ? `${latest.score.toFixed(1)}%` : '—'}</td><td className="px-5 py-3">{outcome}</td><td className="px-5 py-3"><Button size="sm" variant="outline" onClick={() => router.push(`/mentor/students/${row.student_id}/assessments`)}>View history</Button></td></tr>;
+                })}</tbody>
               </table>
             </div>
           )}

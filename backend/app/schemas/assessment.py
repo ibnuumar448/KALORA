@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from uuid import UUID
 from datetime import datetime
 from typing import Optional, List, Dict, Any
@@ -9,7 +9,10 @@ class AnswerSubmission(BaseModel):
     selected_answer: str
 
 class AssessmentSubmitRequest(BaseModel):
-    answers: List[AnswerSubmission]
+    answers: List[AnswerSubmission] = Field(default_factory=list)
+
+class AnswerSaveRequest(BaseModel):
+    selected_answer: str
 
 class AttemptAnswerResponse(BaseModel):
     question_id: UUID
@@ -58,13 +61,31 @@ class AssessmentCreateBase(BaseModel):
     type: AssessmentType
     passing_score: float = 50.0
     duration_minutes: Optional[int] = None
+    subject_id: Optional[UUID] = None
     topic_id: Optional[UUID] = None
+    topic_ids: List[UUID] = Field(default_factory=list)
     module_id: Optional[UUID] = None
     cohort_id: Optional[UUID] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     release_results_at: Optional[datetime] = None
-    question_ids: List[UUID]
+    question_ids: List[UUID] = Field(default_factory=list)
+
+class QuestionOptionInput(BaseModel):
+    id: str
+    text: str
+
+class QuestionCreate(BaseModel):
+    subject_id: UUID
+    topic_id: Optional[UUID] = None
+    text: str
+    options: List[QuestionOptionInput] = Field(min_length=2)
+    correct_answer: str
+    explanation: Optional[str] = None
+    difficulty: Optional[str] = "medium"
+
+class QuestionUpdate(QuestionCreate):
+    pass
 
 class MakeupRequestCreate(BaseModel):
     reason: str

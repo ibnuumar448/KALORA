@@ -1,8 +1,12 @@
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from uuid import UUID
-from app.models.curriculum import Subject, Module, Topic, Subtopic, ResourceSlot, Resource
+import os
+from app.models.curriculum import Subject, Module, Topic, Subtopic, ResourceSlot, Resource, CurriculumDocument
 from app.schemas.curriculum import SubjectCreate, ResourceCreate
+from app.services.storage import StorageService
+
+DOCUMENT_SECTIONS = {"textbooks", "jamb_past_questions"}
 
 class CurriculumService:
     def __init__(self, db: Session):
@@ -59,6 +63,8 @@ class CurriculumService:
                                             version=1
                                         )
                                         self.db.add(res)
+                                        self.db.flush()
+                                        slot.active_resource_id = res.id
                                         self.db.flush()
 
         self.db.commit()
@@ -159,3 +165,101 @@ class CurriculumService:
         self.db.commit()
         
         return {"message": "Success", "title": title, "thumbnail_url": thumbnail_url}
+
+    def delete_resource_slot(self, slot_id: UUID):
+        slot = self.db.query(ResourceSlot).filter(ResourceSlot.id == slot_id).first()
+        if not slot:
+            raise HTTPException(status_code=404, detail="Resource slot not found")
+
+        # Unset active_resource_id first to break the circular foreign key dependency
+        slot.active_resource_id = None
+        self.db.commit()
+
+        # Delete all resources tied to this slot
+        self.db.query(Resource).filter(Resource.slot_id == slot_id).delete(synchronize_session=False)
+
+        subtopic_id = slot.subtopic_id
+
+        # Delete the resource slot itself
+        self.db.delete(slot)
+        self.db.commit()
+
+        # Clean up empty auto-generated 'General Resources' subtopic if no slots remain
+        remaining_slots = self.db.query(ResourceSlot).filter(ResourceSlot.subtopic_id == subtopic_id).count()
+        if remaining_slots == 0:
+            subtopic = self.db.query(Subtopic).filter(Subtopic.id == subtopic_id).first()
+            if subtopic and subtopic.name == "General Resources":
+                self.db.delete(subtopic)
+                self.db.commit()
+
+        return {"message": "Resource deleted successfully"}
+
+    async def upload_document(
+        self,
+        subject_id: UUID,
+        section: str,
+        file: UploadFile,
+        title: str | None,
+        admin_id: UUID,
+    ) -> CurriculumDocument:
+        if section not in DOCUMENT_SECTIONS:
+            raise HTTPException(status_code=400, detail="Invalid curriculum document section")
+
+        filename = os.path.basename((file.filename or "").replace("\\", "/"))
+        if not filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+        if len(filename) > 255:
+            raise HTTPException(status_code=400, detail="The uploaded filename is too long")
+
+        header = await file.read(5)
+        await file.seek(0)
+        if header != b"%PDF-":
+            raise HTTPException(status_code=400, detail="The uploaded file is not a valid PDF")
+
+        subject = self.db.query(Subject).filter(Subject.id == subject_id).first()
+        if not subject:
+            raise HTTPException(status_code=404, detail="Subject not found")
+
+        document_title = title.strip() if title and title.strip() else os.path.splitext(filename)[0]
+        if not document_title or len(document_title) > 255:
+            raise HTTPException(status_code=400, detail="Title must be between 1 and 255 characters")
+
+        file_key = await StorageService.save_file(file, directory=f"curriculum/{subject_id}/{section}")
+        document = CurriculumDocument(
+            subject_id=subject_id,
+            section=section,
+            title=document_title,
+            original_filename=filename,
+            file_key=file_key,
+            created_by=admin_id,
+        )
+        try:
+            self.db.add(document)
+            self.db.commit()
+            self.db.refresh(document)
+        except Exception:
+            self.db.rollback()
+            StorageService.delete_file(file_key)
+            raise
+        return document
+
+    def update_document_title(self, document_id: UUID, title: str) -> CurriculumDocument:
+        document = self.db.query(CurriculumDocument).filter(CurriculumDocument.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Curriculum document not found")
+        clean_title = title.strip()
+        if not clean_title or len(clean_title) > 255:
+            raise HTTPException(status_code=400, detail="Title must be between 1 and 255 characters")
+        document.title = clean_title
+        self.db.commit()
+        self.db.refresh(document)
+        return document
+
+    def delete_document(self, document_id: UUID) -> None:
+        document = self.db.query(CurriculumDocument).filter(CurriculumDocument.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Curriculum document not found")
+        file_key = document.file_key
+        self.db.delete(document)
+        self.db.commit()
+        StorageService.delete_file(file_key)

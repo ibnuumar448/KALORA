@@ -33,6 +33,14 @@ class StorageService:
         """
         Returns the absolute path to a file given its key.
         """
-        # Ensure we don't allow path traversal
-        clean_key = os.path.normpath(file_key).lstrip(os.sep)
-        return os.path.join(UPLOAD_DIR, clean_key)
+        upload_root = os.path.abspath(UPLOAD_DIR)
+        file_path = os.path.abspath(os.path.join(upload_root, file_key))
+        if os.path.commonpath([upload_root, file_path]) != upload_root:
+            raise ValueError("File key points outside the upload directory")
+        return file_path
+
+    @staticmethod
+    def delete_file(file_key: str) -> None:
+        file_path = StorageService.get_file_path(file_key)
+        if os.path.isfile(file_path):
+            os.remove(file_path)

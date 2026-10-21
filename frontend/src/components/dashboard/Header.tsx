@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bell, Menu, X, BookOpen, LayoutDashboard, Target, ShieldAlert, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -15,6 +15,7 @@ const navigation = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -64,6 +65,20 @@ export function Header() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleNotificationClick = async (notification: any) => {
+    if (notification.type === 'mentorship_message' && notification.data?.assignment_id) {
+      const assignmentId = notification.data.assignment_id as string;
+      window.sessionStorage.setItem('kalora_pending_mentor_chat', assignmentId);
+      if (pathname === '/dashboard') {
+        window.dispatchEvent(new CustomEvent('openMentorChat', { detail: { assignmentId } }));
+      } else {
+        router.push('/dashboard');
+      }
+      setShowNotifDropdown(false);
+    }
+    if (!notification.is_read) await handleMarkAsRead(notification.id);
   };
 
   return (
@@ -134,8 +149,8 @@ export function Header() {
                       notifications.map(notif => (
                         <div 
                           key={notif.id} 
-                          className={`p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors ${!notif.is_read ? 'bg-blue-50/50 cursor-pointer' : ''}`}
-                          onClick={() => !notif.is_read && handleMarkAsRead(notif.id)}
+                          className={`p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors ${!notif.is_read || notif.type === 'mentorship_message' ? 'bg-blue-50/50 cursor-pointer' : ''}`}
+                          onClick={() => handleNotificationClick(notif)}
                         >
                           <div className="flex justify-between items-start mb-1">
                             <p className={`text-sm font-medium ${!notif.is_read ? 'text-slate-900' : 'text-slate-700'}`}>

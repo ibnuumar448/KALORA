@@ -1,5 +1,6 @@
 import sys
 import os
+from sqlalchemy import func
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -37,7 +38,9 @@ def seed_users():
             admin = User(
                 email="saminu@gmail.com",
                 full_name="Saminu Umar",
-                password_hash=pwd_context.hash("admin123")
+                password_hash=pwd_context.hash("admin123"),
+                is_email_verified=True,
+                email_verified_at=func.now(),
             )
             db.add(admin)
             db.commit()
@@ -58,7 +61,9 @@ def seed_users():
                 email="ismail@gmail.com",
                 full_name="Ismail Usman Abdullahi",
                 whatsapp_link="https://wa.me/2348000000000",
-                password_hash=pwd_context.hash("mentor123")
+                password_hash=pwd_context.hash("mentor123"),
+                is_email_verified=True,
+                email_verified_at=func.now(),
             )
             db.add(mentor)
             db.commit()
@@ -86,7 +91,9 @@ def seed_users():
                     email=email,
                     full_name=name,
                     whatsapp_link="https://wa.me/2348000000000",
-                    password_hash=pwd_context.hash("student123")
+                    password_hash=pwd_context.hash("student123"),
+                    is_email_verified=True,
+                    email_verified_at=func.now(),
                 )
                 db.add(student)
                 db.commit()

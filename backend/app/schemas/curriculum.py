@@ -99,6 +99,18 @@ class SubjectCreate(BaseModel):
     order_index: int = 0
     modules: Optional[List[ModuleCreate]] = []
 
+
+class CurriculumDocumentResponse(BaseModel):
+    id: UUID
+    subject_id: UUID
+    section: str
+    title: str
+    original_filename: str
+
+    class Config:
+        from_attributes = True
+
+
 class SubjectResponse(BaseModel):
     id: UUID
     programme_id: UUID
@@ -106,9 +118,14 @@ class SubjectResponse(BaseModel):
     description: Optional[str] = None
     order_index: int
     is_active: bool
+    documents: List[CurriculumDocumentResponse] = []
     # We might not want to return the whole nested tree by default, 
     # but for curriculum fetch we do.
     modules: List[ModuleResponse] = []
 
     class Config:
         from_attributes = True
+
+
+class CurriculumDocumentTitleUpdate(BaseModel):
+    title: str

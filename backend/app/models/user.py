@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -14,6 +14,16 @@ class User(Base):
     phone = Column(String(50), nullable=True)
     whatsapp_link = Column(String(255), nullable=True)
     profile_picture_url = Column(String(1024), nullable=True)
+    is_email_verified = Column(Boolean, default=False, server_default='false', nullable=False)
+    verification_token = Column(String(255), nullable=True)
+    verification_token_hash = Column(String(64), nullable=True, unique=True, index=True)
+    verification_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    email_verified_at = Column(DateTime(timezone=True), nullable=True)
+    verification_email_last_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    verification_email_window_started_at = Column(DateTime(timezone=True), nullable=True)
+    verification_email_send_count = Column(Integer, default=0, server_default="0", nullable=False)
+    reset_password_token = Column(String(255), nullable=True)
+    reset_password_expires = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)

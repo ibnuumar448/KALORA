@@ -1,13 +1,33 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { api } from '@/lib/api';
-import { BookOpen, ChevronDown, ChevronRight, Video, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, Video, Plus, Trash2, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+
+type CurriculumDocumentSection = 'textbooks' | 'jamb_past_questions';
+
+type CurriculumDocument = {
+  id: string;
+  section: CurriculumDocumentSection;
+  title: string;
+};
+
+const documentSections: { key: CurriculumDocumentSection; label: string }[] = [
+  { key: 'textbooks', label: 'Recommended Textbooks' },
+  { key: 'jamb_past_questions', label: 'JAMB Past Questions' },
+];
+
+const getErrorDetail = (error: unknown) => {
+  if (!axios.isAxiosError(error)) return undefined;
+  const detail: unknown = error.response?.data?.detail;
+  return typeof detail === 'string' ? detail : undefined;
+};
 
 export default function CurriculumMgmtPage() {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -28,6 +48,11 @@ export default function CurriculumMgmtPage() {
   
   const [showYoutubeModal, setShowYoutubeModal] = useState<string | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [openDocumentSections, setOpenDocumentSections] = useState<Record<string, boolean>>({});
+  const [uploadingDocument, setUploadingDocument] = useState<{ subjectId: string; section: string } | null>(null);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentTitle, setDocumentTitle] = useState('');
+  const [documentUploadBusy, setDocumentUploadBusy] = useState(false);
 
   const fetchCurriculum = async () => {
     try {
@@ -124,6 +149,72 @@ export default function CurriculumMgmtPage() {
     }
   };
 
+  const handleDeleteResource = async (slotId: string, title?: string) => {
+    if (!confirm(`Are you sure you want to remove this video link: "${title || 'this resource'}"?`)) {
+      return;
+    }
+    try {
+      await api.delete(`/curriculum/admin/resource-slots/${slotId}`);
+      fetchCurriculum();
+      toast.success("Resource link deleted successfully!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.detail || "Failed to delete resource");
+    }
+  };
+
+  const toggleDocumentSection = (key: string) => {
+    setOpenDocumentSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleDocumentUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadingDocument || !documentFile) return;
+
+    const formData = new FormData();
+    formData.append('section', uploadingDocument.section);
+    formData.append('title', documentTitle);
+    formData.append('file', documentFile);
+    setDocumentUploadBusy(true);
+    try {
+      await api.post(`/curriculum/admin/subjects/${uploadingDocument.subjectId}/documents`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setUploadingDocument(null);
+      setDocumentFile(null);
+      setDocumentTitle('');
+      await fetchCurriculum();
+      toast.success('PDF uploaded successfully');
+    } catch (err: unknown) {
+      toast.error(getErrorDetail(err) || 'Failed to upload PDF');
+    } finally {
+      setDocumentUploadBusy(false);
+    }
+  };
+
+  const handleEditDocumentTitle = async (document: CurriculumDocument) => {
+    const title = window.prompt('Document title', document.title);
+    if (title === null || title.trim() === document.title) return;
+    try {
+      await api.patch(`/curriculum/admin/documents/${document.id}`, { title });
+      await fetchCurriculum();
+      toast.success('Document title updated');
+    } catch (err: unknown) {
+      toast.error(getErrorDetail(err) || 'Failed to update document title');
+    }
+  };
+
+  const handleDeleteDocument = async (document: CurriculumDocument) => {
+    if (!window.confirm(`Delete "${document.title}"?`)) return;
+    try {
+      await api.delete(`/curriculum/admin/documents/${document.id}`);
+      await fetchCurriculum();
+      toast.success('Document deleted');
+    } catch (err: unknown) {
+      toast.error(getErrorDetail(err) || 'Failed to delete document');
+    }
+  };
+
   // UI Helpers for Syllabus Builder
   const addModule = () => {
     setNewSubject(prev => ({
@@ -193,7 +284,7 @@ export default function CurriculumMgmtPage() {
             const isSubjExpanded = expanded[`subj-${subject.id}`];
             return (
               <div key={subject.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden shadow-sm">
-                <button 
+                <button
                   className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors"
                   onClick={() => toggleExpanded(`subj-${subject.id}`)}
                 >
@@ -212,7 +303,7 @@ export default function CurriculumMgmtPage() {
                       const isModExpanded = expanded[`mod-${module.id}`];
                       return (
                         <div key={module.id} className="border border-slate-100 rounded-md">
-                          <button 
+                          <button
                             className="w-full flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 transition-colors rounded-md"
                             onClick={() => toggleExpanded(`mod-${module.id}`)}
                           >
@@ -231,32 +322,143 @@ export default function CurriculumMgmtPage() {
                                     </Button>
                                   </div>
                                   
-                                  <div className="pl-4 border-l-2 border-slate-200 space-y-2 mt-2">
-                                    {topic.subtopics?.map((sub: any) => (
-                                      <div key={sub.id} className="flex flex-col gap-1">
-                                        <span className="text-slate-600">{sub.name}</span>
-                                        {sub.resource_slots?.map((slot: any) => (
-                                          slot.active_resource && (
-                                            <a 
-                                              key={slot.id}
-                                              href={`https://youtube.com/watch?v=${slot.active_resource.youtube_video_id}`}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="text-primary hover:underline flex items-center gap-1 mt-1 text-xs"
-                                            >
-                                              <Video className="w-3 h-3" />
-                                              {slot.active_resource.title || 'Watch Video'}
-                                            </a>
-                                          )
-                                        ))}
-                                      </div>
-                                    ))}
+                                  <div className="pl-3 border-l-2 border-slate-200 space-y-1 mt-2">
+                                    {(() => {
+                                      const allSlots = topic.subtopics?.flatMap((sub: any) => sub.resource_slots || []) || [];
+                                      const activeSlots = allSlots.filter((slot: any) => slot.active_resource);
+
+                                      if (activeSlots.length === 0) {
+                                        return (
+                                          <p className="text-xs text-slate-400 italic py-1">No learning resources added yet.</p>
+                                        );
+                                      }
+
+                                      return activeSlots.map((slot: any) => (
+                                        <div
+                                          key={slot.id}
+                                          className="flex items-center justify-between gap-2 p-1.5 px-2 rounded hover:bg-slate-100 transition-colors group"
+                                        >
+                                          <a
+                                            href={`https://youtube.com/watch?v=${slot.active_resource.youtube_video_id}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-primary hover:underline flex items-center gap-1.5 text-xs truncate flex-1"
+                                            title={slot.active_resource.title || 'Watch Video'}
+                                          >
+                                            <Video className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                                            <span className="truncate">{slot.active_resource.title || 'Watch Video'}</span>
+                                          </a>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteResource(slot.id, slot.active_resource?.title)}
+                                            className="h-6 w-6 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            title="Delete video link"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </Button>
+                                        </div>
+                                      ));
+                                    })()}
                                   </div>
                                 </div>
                               ))}
                             </div>
                           )}
                         </div>
+                      );
+                    })}
+                    {documentSections.map(section => {
+                      const sectionKey = `${subject.id}-${section.key}`;
+                      const isOpen = openDocumentSections[sectionKey];
+                      const documents = (subject.documents || []).filter((document: CurriculumDocument) => document.section === section.key);
+                      const isUploading = uploadingDocument?.subjectId === subject.id && uploadingDocument?.section === section.key;
+                      return (
+                        <section key={section.key} className="border-t border-slate-100 pt-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <button
+                              type="button"
+                              onClick={() => toggleDocumentSection(sectionKey)}
+                              className="flex items-center gap-2 text-sm font-semibold text-slate-900"
+                            >
+                              {isOpen ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                              {section.label}
+                              <span className="text-xs font-normal text-slate-500">({documents.length})</span>
+                            </button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setUploadingDocument({ subjectId: subject.id, section: section.key });
+                                setDocumentFile(null);
+                                setDocumentTitle('');
+                                setOpenDocumentSections(prev => ({ ...prev, [sectionKey]: true }));
+                              }}
+                            >
+                              <Plus className="w-3.5 h-3.5 mr-1" /> Add PDF
+                            </Button>
+                          </div>
+                          {isOpen && (
+                            <div className="mt-3 space-y-3 pl-6">
+                              {isUploading && (
+                                <form onSubmit={handleDocumentUpload} className="space-y-2 rounded border border-slate-200 p-3">
+                                  <div>
+                                    <Label htmlFor={`pdf-${sectionKey}`}>PDF file</Label>
+                                    <Input
+                                      id={`pdf-${sectionKey}`}
+                                      type="file"
+                                      accept="application/pdf,.pdf"
+                                      required
+                                      onChange={event => {
+                                        const file = event.target.files?.[0] || null;
+                                        setDocumentFile(file);
+                                        if (file) setDocumentTitle(file.name.replace(/\.pdf$/i, ''));
+                                      }}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label htmlFor={`title-${sectionKey}`}>Document title</Label>
+                                    <Input
+                                      id={`title-${sectionKey}`}
+                                      value={documentTitle}
+                                      onChange={event => setDocumentTitle(event.target.value)}
+                                      maxLength={255}
+                                      required
+                                    />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button type="submit" size="sm" disabled={documentUploadBusy || !documentFile}>
+                                      {documentUploadBusy ? 'Uploading...' : 'Upload PDF'}
+                                    </Button>
+                                    <Button type="button" size="sm" variant="ghost" onClick={() => setUploadingDocument(null)}>
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </form>
+                              )}
+                              {documents.length === 0 && !isUploading && (
+                                <p className="text-xs text-slate-400">No PDFs added yet.</p>
+                              )}
+                              {documents.map((document: CurriculumDocument) => (
+                                <div key={document.id} className="flex items-center justify-between gap-2 text-sm">
+                                  <span className="flex min-w-0 items-center gap-2 truncate text-slate-700">
+                                    <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                                    <span className="truncate">{document.title}</span>
+                                  </span>
+                                  <div className="flex shrink-0 gap-1">
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => handleEditDocumentTitle(document)}>
+                                      Edit title
+                                    </Button>
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteDocument(document)} className="text-slate-400 hover:text-red-600">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </section>
                       );
                     })}
                   </div>

@@ -1,203 +1,83 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
-import { BookOpen, Clock, Trophy, ArrowRight, AlertTriangle } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import Link from 'next/link';
+import { AlertTriangle, BookOpen, Clock, Trophy } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+type Assignment = {
+  id: string; student_assessment_id: string; name: string; type: string; subject_name?: string;
+  question_count: number; duration_minutes?: number; passing_score: number; status: string;
+  display_status: string; score?: number | null; release_results_at?: string | null;
+  start_date?: string | null; end_date?: string | null; attempt_id?: string | null; makeup_request?: { status?: string } | null;
+};
+
+const statusLabel: Record<string, string> = { upcoming: 'Upcoming', available: 'Available', closed: 'Closed', in_progress: 'In Progress', makeup_in_progress: 'In Progress', submitted: 'Completed', auto_submitted: 'Completed', makeup_submitted: 'Completed', missed: 'Missed', not_started: 'Not Started', makeup_approved: 'Makeup Approved' };
+const statusStyle: Record<string, string> = { upcoming: 'bg-slate-100 text-slate-700', available: 'bg-green-100 text-green-800', in_progress: 'bg-amber-100 text-amber-800', makeup_in_progress: 'bg-amber-100 text-amber-800', missed: 'bg-red-100 text-red-800', submitted: 'bg-green-100 text-green-800', auto_submitted: 'bg-green-100 text-green-800', makeup_submitted: 'bg-green-100 text-green-800' };
 
 export default function AssessmentsPage() {
-  const [assignments, setAssignments] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [requestModalOpen, setRequestModalOpen] = useState(false);
-  const [activeAssignment, setActiveAssignment] = useState<any | null>(null);
+  const [error, setError] = useState('');
+  const [requestFor, setRequestFor] = useState<Assignment | null>(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAssignments = async () => {
+    setError('');
     try {
       const response = await api.get('/assessments/my-assignments');
       setAssignments(response.data);
-    } catch (err: any) {
-      console.error('Failed to fetch assignments', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err: unknown) {
+      const detail = axios.isAxiosError(err) ? err.response?.data?.detail : null;
+      setError(typeof detail === 'string' ? detail : 'Assessments could not be loaded. Refresh to try again.');
+    } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchAssignments();
-  }, []);
+  useEffect(() => { const timer = window.setTimeout(() => { void fetchAssignments(); }, 0); return () => window.clearTimeout(timer); }, []);
 
-  const handleRequestMakeup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeAssignment || !reason) return;
+  const requestMakeup = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!requestFor || !reason.trim()) return;
     setSubmitting(true);
     try {
-      await api.post(`/assessments/${activeAssignment.id}/makeup-request`, { reason });
-      toast.success("Makeup request submitted successfully");
-      setRequestModalOpen(false);
+      await api.post(`/assessments/${requestFor.id}/makeup-request`, { reason: reason.trim() });
+      toast.success('Makeup request submitted.');
+      setRequestFor(null);
       setReason('');
-      fetchAssignments();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to submit request");
-    } finally {
-      setSubmitting(false);
+      await fetchAssignments();
+    } catch (err: unknown) {
+      const detail = axios.isAxiosError(err) ? err.response?.data?.detail : null;
+      toast.error(typeof detail === 'string' ? detail : 'Makeup request could not be submitted.');
     }
+    finally { setSubmitting(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6 max-w-7xl mx-auto">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">My Assessments</h2>
-          <p className="text-slate-500 mt-1">Loading assigned assessments...</p>
-        </div>
-        <div className="animate-pulse text-slate-500">Loading...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">My Assessments</h2>
-        <p className="text-slate-500 mt-1">View your assigned assessments and requests.</p>
-      </div>
-
-      {assignments.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <BookOpen className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-600 font-medium">No assessments assigned</p>
-            <p className="text-slate-500 text-sm mt-1">You currently have no pending or past assessments.</p>
+  if (loading) return <div className="mx-auto max-w-7xl p-6 text-slate-500">Loading assigned assessments...</div>;
+  return <div className="mx-auto max-w-7xl space-y-6">
+    <div><h1 className="text-2xl font-bold text-slate-900">My Assessments</h1><p className="mt-1 text-sm text-slate-500">Weekly assessments assigned to you.</p></div>
+    {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}<Button variant="outline" size="sm" className="ml-3" onClick={() => { setLoading(true); void fetchAssignments(); }}>Retry</Button></div>}
+    {!error && assignments.length === 0 ? <Card><CardContent className="p-12 text-center"><BookOpen className="mx-auto mb-3 h-10 w-10 text-slate-300"/><p className="font-medium text-slate-700">No assessments assigned</p><p className="mt-1 text-sm text-slate-500">Your assigned assessments will appear here.</p></CardContent></Card> : <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {assignments.map(item => {
+        const label = statusLabel[item.display_status] || statusLabel[item.status] || item.status;
+        const inProgress = ['in_progress', 'makeup_in_progress'].includes(item.status);
+        const done = ['submitted', 'auto_submitted', 'makeup_submitted'].includes(item.status);
+        const released = !item.release_results_at || new Date(item.release_results_at) <= new Date();
+        return <Card key={item.student_assessment_id} className="flex flex-col">
+          <CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-base">{item.name}</CardTitle><CardDescription className="mt-1">{item.subject_name || item.type}</CardDescription></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyle[item.display_status] || statusStyle[item.status] || 'bg-slate-100 text-slate-700'}`}>{label}</span></div></CardHeader>
+          <CardContent className="flex-1 space-y-3 text-sm text-slate-600"><div className="flex flex-wrap gap-x-4 gap-y-2"><span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4 text-green-700"/>{item.question_count} questions</span>{item.duration_minutes && <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-green-700"/>{item.duration_minutes} minutes</span>}<span className="flex items-center gap-1.5"><Trophy className="h-4 w-4 text-green-700"/>Pass: {item.passing_score}%</span></div>
+            {item.start_date && <p className="text-xs">Available {new Date(item.start_date).toLocaleString()}{item.end_date ? ` until ${new Date(item.end_date).toLocaleString()}` : ''}</p>}
+            {item.status === 'missed' && <p className="flex items-center gap-2 rounded-md border border-red-100 bg-red-50 p-2 text-xs text-red-700"><AlertTriangle className="h-4 w-4"/>This assessment window has ended.</p>}
+            {item.makeup_request?.status && <p className="rounded-md bg-slate-50 p-2 text-xs">Makeup request: {item.makeup_request.status}</p>}
           </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {assignments.map(a => (
-            <Card key={a.student_assessment_id} className="hover:shadow-lg transition-shadow flex flex-col">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <CardTitle className="text-base">{a.name}</CardTitle>
-                    <CardDescription className="mt-1">
-                      <span className="inline-block px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-medium capitalize">
-                        {a.type}
-                      </span>
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-4 flex-1">
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <BookOpen className="w-4 h-4 text-primary" />
-                    <span>{a.question_count} questions</span>
-                  </div>
-                  {a.duration_minutes && (
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Clock className="w-4 h-4 text-primary" />
-                      <span>{a.duration_minutes} minutes</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Trophy className="w-4 h-4 text-primary" />
-                    <span>Pass: {a.passing_score}%</span>
-                  </div>
-                </div>
-
-                {a.status === 'missed' && (
-                  <div className="p-3 bg-red-50 border border-red-100 rounded-md">
-                    <div className="flex items-center text-red-700 font-semibold text-sm mb-1">
-                      <AlertTriangle className="w-4 h-4 mr-2" /> Missed
-                    </div>
-                    <p className="text-xs text-red-600">You did not submit this assessment on time.</p>
-                  </div>
-                )}
-                
-                {a.makeup_request && (
-                  <div className={`p-3 border rounded-md text-sm font-medium ${
-                    a.makeup_request.status === 'pending' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' :
-                    a.makeup_request.status === 'approved' ? 'bg-green-50 text-green-800 border-green-200' :
-                    'bg-slate-50 text-slate-800 border-slate-200'
-                  }`}>
-                    Makeup Request: {a.makeup_request.status.toUpperCase()}
-                  </div>
-                )}
-
-                {a.status === 'makeup_approved' && (
-                  <div className="p-3 bg-primary-light border border-blue-200 rounded-md text-xs text-blue-800">
-                    <p className="font-semibold mb-1">Makeup Window Approved</p>
-                    <p>Start: {new Date(a.makeup_start_at).toLocaleString()}</p>
-                    <p>End: {new Date(a.makeup_end_at).toLocaleString()}</p>
-                  </div>
-                )}
-              </CardContent>
-
-              <CardFooter className="pt-4 border-t bg-slate-50">
-                {a.status === 'missed' && !a.makeup_request ? (
-                  <Button variant="outline" className="w-full border-red-200 text-red-700 hover:bg-red-50" onClick={() => { setActiveAssignment(a); setRequestModalOpen(true); }}>
-                    Request Makeup Assessment
-                  </Button>
-                ) : (a.status === 'not_started' || a.status === 'makeup_approved') ? (
-                  <Link href={`/dashboard/assessments/${a.id}`} className="w-full">
-                    <Button className="w-full group">
-                      Start Assessment
-                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </Link>
-                ) : a.status === 'submitted' || a.status === 'makeup_submitted' ? (
-                  a.release_results_at && new Date(a.release_results_at) <= new Date() ? (
-                    <Link href={`/dashboard/assessments/${a.id}/results`} className="w-full">
-                      <Button variant="outline" className="w-full text-primary border-blue-200 hover:bg-primary-light">
-                        View Results
-                      </Button>
-                    </Link>
-                  ) : (
-                    <Button variant="outline" className="w-full text-slate-500 bg-slate-100" disabled>
-                      <Clock className="w-4 h-4 mr-2" /> Awaiting Results
-                    </Button>
-                  )
-                ) : (
-                  <Button variant="outline" className="w-full text-slate-600" disabled>
-                    {a.status.replace('_', ' ').toUpperCase()}
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Makeup Request Modal */}
-      {requestModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Request Makeup Assessment</h2>
-            <p className="text-sm text-slate-500 mb-4">
-              Please explain why you were unable to participate in <strong>{activeAssignment?.name}</strong>.
-            </p>
-            <form onSubmit={handleRequestMakeup}>
-              <textarea
-                required
-                rows={4}
-                className="w-full border rounded-md p-3 text-sm focus:ring-2 focus:ring-primary outline-none"
-                placeholder="Reason for missing the assessment..."
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-              />
-              <div className="flex justify-end gap-2 mt-4">
-                <Button type="button" variant="outline" onClick={() => setRequestModalOpen(false)} disabled={submitting}>Cancel</Button>
-                <Button type="submit" disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Request'}</Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+          <CardFooter className="border-t bg-slate-50"><div className="w-full">{inProgress ? <Link href={`/dashboard/assessments/${item.id}`}><Button className="w-full">Resume Assessment</Button></Link> : done ? released ? <Link href={`/dashboard/assessments/${item.id}/results`}><Button variant="outline" className="w-full">View Result{item.score !== null && item.score !== undefined ? ` · ${item.score.toFixed(1)}%` : ''}</Button></Link> : <Button variant="outline" className="w-full" disabled>Awaiting Results</Button> : item.display_status === 'closed' ? <Button variant="outline" className="w-full" disabled>Assessment Closed</Button> : item.display_status === 'upcoming' ? <Button variant="outline" className="w-full" disabled>Available at scheduled time</Button> : item.status === 'missed' ? item.makeup_request?.status === 'pending' ? <Button variant="outline" className="w-full" disabled>Makeup request pending</Button> : <Button variant="outline" className="w-full" onClick={() => setRequestFor(item)}>Request Makeup</Button> : ['available', 'makeup_approved'].includes(item.display_status || item.status) ? <Link href={`/dashboard/assessments/${item.id}`}><Button className="w-full">Assessment Details</Button></Link> : <Button variant="outline" className="w-full" disabled>{label}</Button>}</div></CardFooter>
+        </Card>;
+      })}
+    </div>}
+    {requestFor && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><Card className="w-full max-w-md"><CardHeader><CardTitle>Request Makeup</CardTitle><CardDescription>Explain why you were unable to take {requestFor.name}.</CardDescription></CardHeader><CardContent><form onSubmit={requestMakeup} className="space-y-4"><textarea required rows={4} className="w-full rounded-md border p-3 text-sm" value={reason} onChange={event => setReason(event.target.value)} aria-label="Reason for makeup request"/><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setRequestFor(null)} disabled={submitting}>Cancel</Button><Button type="submit" disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Request'}</Button></div></form></CardContent></Card></div>}
+  </div>;
 }

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, Text
+from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, Text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -12,7 +12,8 @@ class Notification(Base):
     
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    type = Column(String(50), nullable=False) # 'message', 'support_request', 'general'
+    type = Column(String(50), nullable=False)
+    data = Column(JSON, nullable=True)
     
     is_read = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

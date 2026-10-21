@@ -1,3 +1,4 @@
+from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.user import UserCreate
@@ -8,6 +9,20 @@ class UserRepository:
 
     def get_by_email(self, email: str) -> User | None:
         return self.db.query(User).filter(User.email == email).first()
+
+    def get_by_verification_token_hash(self, token_hash: str) -> User | None:
+        return (
+            self.db.query(User)
+            .filter(User.verification_token_hash == token_hash)
+            .with_for_update()
+            .first()
+        )
+
+    def get_by_email_for_update(self, email: str) -> User | None:
+        return self.db.query(User).filter(User.email == email).with_for_update().first()
+
+    def get_by_reset_password_token(self, token: str) -> User | None:
+        return self.db.query(User).filter(User.reset_password_token == token).first()
 
     def get_by_provider_id(self, provider: str, provider_user_id: str):
         from app.models.user import AuthIdentity
@@ -27,11 +42,25 @@ class UserRepository:
         self.db.add(identity)
         self.db.commit()
 
-    def create(self, user_data: UserCreate, hashed_password: str) -> User:
+    def create(
+        self,
+        user_data: UserCreate,
+        hashed_password: str,
+        verification_token_hash: str,
+        verification_token_expires_at: datetime,
+        verification_email_attempted_at: datetime,
+    ) -> User:
         db_user = User(
             email=user_data.email,
             password_hash=hashed_password,
-            full_name=user_data.full_name
+            full_name=user_data.full_name,
+            is_email_verified=False,
+            verification_token=None,
+            verification_token_hash=verification_token_hash,
+            verification_token_expires_at=verification_token_expires_at,
+            verification_email_last_attempt_at=verification_email_attempted_at,
+            verification_email_window_started_at=verification_email_attempted_at,
+            verification_email_send_count=1,
         )
         self.db.add(db_user)
         self.db.commit()
@@ -43,7 +72,8 @@ class UserRepository:
         db_user = User(
             email=email,
             full_name=full_name,
-            password_hash=None
+            password_hash=None,
+            is_email_verified=False,
         )
         self.db.add(db_user)
         self.db.commit()

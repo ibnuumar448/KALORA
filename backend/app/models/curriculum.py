@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, Text, Integer, UniqueConstraint
+from sqlalchemy import Column, String, ForeignKey, DateTime, Boolean, Text, Integer, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -19,6 +19,7 @@ class Subject(Base):
 
     programme = relationship("Programme")
     modules = relationship("Module", back_populates="subject", cascade="all, delete-orphan", order_by="Module.order_index")
+    documents = relationship("CurriculumDocument", back_populates="subject", cascade="all, delete-orphan", order_by="CurriculumDocument.created_at")
 
 class Module(Base):
     __tablename__ = "modules"
@@ -104,4 +105,25 @@ class Resource(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     slot = relationship("ResourceSlot", back_populates="resources", foreign_keys=[slot_id])
+    creator = relationship("User")
+
+
+class CurriculumDocument(Base):
+    __tablename__ = "curriculum_documents"
+    __table_args__ = (
+        CheckConstraint("section IN ('textbooks', 'jamb_past_questions')", name="ck_curriculum_documents_section"),
+        Index("ix_curriculum_documents_subject_section", "subject_id", "section"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    subject_id = Column(UUID(as_uuid=True), ForeignKey("subjects.id", ondelete="CASCADE"), nullable=False)
+    section = Column(String(32), nullable=False)
+    title = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_key = Column(String(512), nullable=False)
+    is_published = Column(Boolean, default=True, server_default="true", nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    subject = relationship("Subject", back_populates="documents")
     creator = relationship("User")

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime, timezone
+from typing import Optional
 from app.models.notification import Notification
 from app.schemas.notification import NotificationResponse
 from fastapi import HTTPException
@@ -48,12 +49,13 @@ class NotificationService:
         ).update({"is_read": True})
         self.db.commit()
 
-    def create_notification(self, user_id: UUID, title: str, message: str, type: str) -> Notification:
+    def create_notification(self, user_id: UUID, title: str, message: str, type: str, data: Optional[dict] = None) -> Notification:
         new_notif = Notification(
             user_id=user_id,
             title=title,
             message=message,
             type=type,
+            data=data,
             created_at=datetime.now(timezone.utc)
         )
         self.db.add(new_notif)

@@ -64,19 +64,3 @@ class MentorshipMessage(Base):
     assignment = relationship("MentorAssignment", foreign_keys=[assignment_id])
     sender = relationship("User", foreign_keys=[sender_id])
 
-class SupportRequest(Base):
-    __tablename__ = "support_requests"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
-    assignment_id = Column(UUID(as_uuid=True), ForeignKey("mentor_assignments.id", ondelete="CASCADE"), nullable=False)
-    student_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    
-    category = Column(String(100), nullable=False)
-    message = Column(Text, nullable=False)
-    status = Column(String(20), default="open", nullable=False) # 'open' or 'resolved'
-    
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-
-    assignment = relationship("MentorAssignment", foreign_keys=[assignment_id])
-    student = relationship("User", foreign_keys=[student_id])

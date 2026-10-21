@@ -7,7 +7,6 @@ from app.api.deps import get_current_user, RequireRole
 from app.models.user import User
 from app.schemas.mentorship import (
     MentorNoteCreate, MentorNoteResponse, AssignedStudentResponse,
-    SupportRequestResponse
 )
 from app.services.mentorship import MentorshipService
 
@@ -31,10 +30,3 @@ def log_student_intervention(
     service = MentorshipService(db)
     return service.log_intervention(current_user.id, student_id, note_in)
 
-@router.get("/me/support-requests", response_model=List[SupportRequestResponse])
-def get_my_support_requests(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(RequireRole(["mentor"]))
-):
-    service = MentorshipService(db)
-    return service.get_support_requests(current_user.id, is_mentor=True)

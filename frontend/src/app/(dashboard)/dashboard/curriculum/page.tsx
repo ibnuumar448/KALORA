@@ -1,12 +1,32 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { PlayCircle, CheckCircle, Target, BookOpen, ExternalLink, Activity, Info, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { PlayCircle, CheckCircle, Target, BookOpen, ExternalLink, Activity, Info, Users, ChevronDown, ChevronUp, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
+import { toast } from 'sonner';
 
 type Curriculum = any;
+type CurriculumDocumentSection = 'textbooks' | 'jamb_past_questions';
+type CurriculumDocument = {
+  id: string;
+  section: CurriculumDocumentSection;
+  title: string;
+  original_filename: string;
+};
+type CurriculumSubject = {
+  id: string;
+  name: string;
+  documents?: CurriculumDocument[];
+};
+
+const getErrorDetail = (error: unknown) => {
+  if (!axios.isAxiosError(error)) return undefined;
+  const detail: unknown = error.response?.data?.detail;
+  return typeof detail === 'string' ? detail : undefined;
+};
 
 export default function CurriculumPage() {
   const [subjects, setSubjects] = useState<any[]>([]);
@@ -16,6 +36,10 @@ export default function CurriculumPage() {
   const [activeTopic, setActiveTopic] = useState<any>(null);
   const [activeSlot, setActiveSlot] = useState<any>(null);
   const [activeResource, setActiveResource] = useState<any>(null);
+  const [selectedDocumentSection, setSelectedDocumentSection] = useState<{ subject: CurriculumSubject; section: CurriculumDocumentSection } | null>(null);
+  const [activeDocument, setActiveDocument] = useState<CurriculumDocument | null>(null);
+  const [activeDocumentUrl, setActiveDocumentUrl] = useState<string | null>(null);
+  const [documentBusyId, setDocumentBusyId] = useState<string | null>(null);
   const [expandedSubjects, setExpandedSubjects] = useState<Record<string, boolean>>({});
 
   const toggleSubject = (id: string) => {
@@ -36,6 +60,37 @@ export default function CurriculumPage() {
     fetchCurriculum();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (activeDocumentUrl) URL.revokeObjectURL(activeDocumentUrl);
+    };
+  }, [activeDocumentUrl]);
+
+  const handleDocumentAction = async (document: CurriculumDocument, download: boolean) => {
+    setDocumentBusyId(document.id);
+    try {
+      const response = await api.get(`/curriculum/documents/${document.id}/file`, {
+        params: download ? { download: true } : undefined,
+        responseType: 'blob'
+      });
+      const fileUrl = URL.createObjectURL(response.data);
+      if (download) {
+        const link = window.document.createElement('a');
+        link.href = fileUrl;
+        link.download = document.original_filename || `${document.title}.pdf`;
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
+      } else {
+        setActiveDocument(document);
+        setActiveDocumentUrl(fileUrl);
+      }
+    } catch (error: unknown) {
+      toast.error(getErrorDetail(error) || 'Unable to open this PDF');
+    } finally {
+      setDocumentBusyId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-8rem)] text-slate-500">
@@ -48,6 +103,64 @@ export default function CurriculumPage() {
   }
 
   const renderActiveContent = () => {
+    if (selectedDocumentSection) {
+      const { subject, section } = selectedDocumentSection;
+      const label = section === 'textbooks' ? 'Recommended Textbooks' : 'JAMB Past Questions';
+      const documents = (subject.documents || []).filter((document: CurriculumDocument) => document.section === section);
+      return (
+        <div className="flex-1 flex flex-col overflow-y-auto pr-2">
+          <section className="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-2xl font-bold text-slate-900">{subject.name}</h2>
+            <h3 className="mt-1 text-lg font-semibold text-slate-700">{label}</h3>
+            {documents.length === 0 ? (
+              <p className="mt-5 text-sm text-slate-500">No PDFs are available in this section yet.</p>
+            ) : (
+              <div className="mt-5 divide-y divide-slate-100">
+                {documents.map((document: CurriculumDocument) => (
+                  <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+                      <span className="truncate font-medium text-slate-800">{document.title}</span>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={documentBusyId === document.id}
+                        onClick={() => handleDocumentAction(document, false)}
+                      >
+                        Read
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={documentBusyId === document.id}
+                        onClick={() => handleDocumentAction(document, true)}
+                      >
+                        <Download className="mr-1 h-3.5 w-3.5" /> Download
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+          {activeDocumentUrl && activeDocument && selectedDocumentSection.subject.id === subject.id && (
+            <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <h3 className="mb-3 font-semibold text-slate-900">{activeDocument.title}</h3>
+              <iframe
+                src={activeDocumentUrl}
+                title={activeDocument.title}
+                className="h-[70vh] w-full rounded border border-slate-200"
+              />
+            </section>
+          )}
+        </div>
+      );
+    }
+
     if (!activeTopic) {
       return (
         <div className="flex-1 flex items-center justify-center border border-slate-200 bg-white rounded-xl">
@@ -106,36 +219,6 @@ export default function CurriculumPage() {
             </div>
           )}
         </div>
-
-        <div className="grid md:grid-cols-3 gap-6 pb-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-primary-light transition-colors">
-            <div className="flex items-center gap-2 text-primary font-semibold text-sm mb-3">
-              <Target className="w-4 h-4" />
-              <span>PRACTICE</span>
-            </div>
-            <h3 className="font-bold text-slate-900 mb-2">Practice Questions</h3>
-            <p className="text-slate-500 text-xs mb-4">Test your understanding with topic-specific exercises.</p>
-            <Button variant="outline" className="w-full text-xs">Start Practice</Button>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-primary-light transition-colors">
-            <div className="flex items-center gap-2 text-primary font-semibold text-sm mb-3">
-              <CheckCircle className="w-4 h-4" />
-              <span>ASSESS</span>
-            </div>
-            <h3 className="font-bold text-slate-900 mb-2">Topic Evaluation</h3>
-            <p className="text-slate-500 text-xs mb-4">Formal assessment to measure your mastery of this topic.</p>
-            <Button variant="outline" className="w-full text-xs" disabled>Locked (Complete Practice)</Button>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:border-primary-light transition-colors">
-            <div className="flex items-center gap-2 text-primary font-semibold text-sm mb-3">
-              <Users className="w-4 h-4" />
-              <span>MENTOR</span>
-            </div>
-            <h3 className="font-bold text-slate-900 mb-2">Seek Guidance</h3>
-            <p className="text-slate-500 text-xs mb-4">Struggling? Request targeted intervention from your mentor.</p>
-            <Button variant="outline" className="w-full text-xs">Request Help</Button>
-          </div>
-        </div>
       </div>
     );
   };
@@ -173,43 +256,84 @@ export default function CurriculumPage() {
                 
                 {expandedSubjects[subject.id] && (
                   <div className="space-y-4 ml-3">
+                    <h4 className="text-sm font-semibold text-slate-800">Core Syllabus</h4>
                     {subject.modules?.map((module: any) => (
                       <div key={module.id} className="pl-3 border-l-2 border-slate-100">
-                        <p className="text-xs text-slate-500 tracking-wider uppercase font-bold mb-3">{module.name}</p>
+                        {module.name !== 'Core Syllabus' && (
+                          <p className="text-xs text-slate-500 tracking-wider uppercase font-bold mb-3">{module.name}</p>
+                        )}
                         <div className="space-y-3">
                           {module.topics?.map((topic: any) => (
                             <div key={topic.id} className="mb-2">
                               <button 
-                                onClick={() => { setActiveTopic(topic); setActiveResource(null); }}
+                                onClick={() => {
+                                  setSelectedDocumentSection(null);
+                                  setActiveDocument(null);
+                                  setActiveDocumentUrl(null);
+                                  setActiveTopic(topic);
+                                  setActiveResource(null);
+                                }}
                                 className="w-full text-left font-semibold text-sm text-slate-800 hover:text-primary transition-colors mb-2"
                               >
                                 {topic.name}
                               </button>
-                              {topic.subtopics?.map((sub: any) => (
-                                <div key={sub.id} className="ml-2 mb-2">
-                                  <p className="text-xs text-slate-600 font-medium mb-1">{sub.name}</p>
-                                  {sub.resource_slots?.map((slot: any) => (
-                                    slot.active_resource && (
+                              {(() => {
+                                const allSlots = topic.subtopics?.flatMap((sub: any) => sub.resource_slots || []) || [];
+                                const activeSlots = allSlots.filter((slot: any) => slot.active_resource);
+
+                                if (activeSlots.length === 0) {
+                                  return (
+                                    <p className="text-xs text-slate-400 italic pl-3 py-0.5">No learning resources added yet.</p>
+                                  );
+                                }
+
+                                return (
+                                  <div className="space-y-1 pl-1 mb-2">
+                                    {activeSlots.map((slot: any) => (
                                       <button
                                         key={slot.id}
                                         onClick={() => {
+                                          setSelectedDocumentSection(null);
+                                          setActiveDocument(null);
+                                          setActiveDocumentUrl(null);
                                           setActiveTopic(topic);
                                           setActiveSlot(slot);
                                           setActiveResource(slot.active_resource);
                                         }}
                                         className={`w-full text-left flex items-start gap-2 p-2 rounded-md text-xs transition-colors ${activeResource?.id === slot.active_resource.id ? 'bg-primary-light text-primary font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
                                       >
-                                        <PlayCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                        <PlayCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                                         <span className="flex-1 truncate">{slot.active_resource.title || slot.name}</span>
                                       </button>
-                                    )
-                                  ))}
-                                </div>
-                              ))}
+                                    ))}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           ))}
                         </div>
                       </div>
+                    ))}
+                    {([
+                      { key: 'textbooks', label: 'Recommended Textbooks' },
+                      { key: 'jamb_past_questions', label: 'JAMB Past Questions' },
+                    ] as { key: CurriculumDocumentSection; label: string }[]).map(section => (
+                      <button
+                        key={section.key}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDocumentSection({ subject, section: section.key });
+                          setActiveTopic(null);
+                          setActiveSlot(null);
+                          setActiveResource(null);
+                          setActiveDocument(null);
+                          setActiveDocumentUrl(null);
+                        }}
+                        className="flex w-full items-center gap-2 border-t border-slate-100 pt-3 text-left text-sm font-semibold text-slate-800 hover:text-primary"
+                      >
+                        <FileText className="h-4 w-4 text-slate-400" />
+                        {section.label}
+                      </button>
                     ))}
                   </div>
                 )}

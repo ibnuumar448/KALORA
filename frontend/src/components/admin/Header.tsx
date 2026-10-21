@@ -14,7 +14,7 @@ const navigation = [
   { name: 'Assessments', href: '/admin/assessments', icon: ClipboardList },
   { name: 'Mentorship', href: '/admin/mentorship', icon: Users },
   { name: 'Discipline Mgmt', href: '/admin/disciplinary', icon: ShieldAlert, requireSuperAdmin: true },
-  { name: 'My Discipline', href: '/admin/my-discipline', icon: ShieldAlert, requireSuperAdmin: false },
+  { name: 'My Discipline', href: '/admin/my-discipline', icon: ShieldAlert, requireSuperAdmin: false, hideForSuperAdmin: true },
   { name: 'Settings', href: '/admin/settings', icon: Settings, requireSuperAdmin: true },
 ];
 
@@ -30,7 +30,9 @@ export function AdminHeader() {
   const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const visibleNavigation = navigation.filter(
-    (item) => !item.requireSuperAdmin || isSuperAdmin
+    (item) =>
+      (!item.requireSuperAdmin || isSuperAdmin) &&
+      !(isSuperAdmin && 'hideForSuperAdmin' in item && item.hideForSuperAdmin)
   );
 
   // Split navigation for desktop: first 5 items, rest in "More"
@@ -81,9 +83,16 @@ export function AdminHeader() {
               })}
               
               {desktopMore.length > 0 && (
-                <div className="relative" ref={moreMenuRef}>
+                <div
+                  className="relative"
+                  ref={moreMenuRef}
+                  onMouseEnter={() => setMoreMenuOpen(true)}
+                  onMouseLeave={() => setMoreMenuOpen(false)}
+                >
                   <button
                     onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                    aria-expanded={moreMenuOpen}
+                    aria-haspopup="true"
                     className={cn(
                       "flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
                       desktopMore.some(item => pathname === item.href || pathname.startsWith(item.href + '/'))
@@ -94,23 +103,25 @@ export function AdminHeader() {
                     More <ChevronDown className="w-4 h-4" />
                   </button>
                   {moreMenuOpen && (
-                    <div className="absolute left-0 mt-2 w-48 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 py-1">
-                      {desktopMore.map(item => {
-                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            onClick={() => setMoreMenuOpen(false)}
-                            className={cn(
-                              "block px-4 py-2 text-sm transition-colors",
-                              isActive ? "bg-primary-light text-primary font-medium" : "text-slate-700 hover:bg-slate-50 hover:text-primary"
-                            )}
-                          >
-                            {item.name}
-                          </Link>
-                        );
-                      })}
+                    <div className="absolute left-0 top-full z-50 w-48 pt-2">
+                      <div className="rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                        {desktopMore.map(item => {
+                          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                          return (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              onClick={() => setMoreMenuOpen(false)}
+                              className={cn(
+                                "block px-4 py-2 text-sm transition-colors",
+                                isActive ? "bg-primary-light text-primary font-medium" : "text-slate-700 hover:bg-slate-50 hover:text-primary"
+                              )}
+                            >
+                              {item.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

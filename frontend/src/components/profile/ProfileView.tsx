@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, Save, X, User as UserIcon } from 'lucide-react';
-import { api, API_BASE_URL } from '@/lib/api';
+import { AuthenticatedProfileImage } from '@/components/AuthenticatedProfileImage';
+import { api } from '@/lib/api';
 
 export function ProfileView() {
   const { user, refreshUser } = useAuth();
@@ -82,11 +83,6 @@ export function ProfileView() {
 
   if (!user) return <div className="p-8 text-center">Loading profile...</div>;
 
-  const getToken = () => typeof window !== 'undefined' ? localStorage.getItem('access_token') : '';
-  const profilePicSrc = user.profile_picture_url 
-    ? `${API_BASE_URL}/users/profile-pictures/${user.profile_picture_url}?token=${getToken()}` 
-    : null;
-
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       
@@ -117,8 +113,8 @@ export function ProfileView() {
             <CardContent className="pt-6 flex flex-col items-center">
               <div className="relative group mb-4">
                 <div className="w-32 h-32 rounded-full overflow-hidden bg-slate-100 border-4 border-white shadow-lg flex items-center justify-center">
-                  {profilePicSrc ? (
-                    <img src={profilePicSrc} alt={user.full_name} className="w-full h-full object-cover" />
+                  {user.profile_picture_url ? (
+                    <AuthenticatedProfileImage fileKey={user.profile_picture_url} alt={user.full_name} className="w-full h-full object-cover" />
                   ) : (
                     <UserIcon className="w-16 h-16 text-slate-300" />
                   )}

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bell, Menu, X, LayoutDashboard, Target, Users, LogOut, Settings, ShieldAlert, ClipboardList, BookOpen, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AuthenticatedProfileImage } from '@/components/AuthenticatedProfileImage';
 import { api } from '@/lib/api';
 import { cn } from '@/components/ui/button';
 
@@ -143,7 +144,7 @@ export function AdminHeader() {
             <Link href="/admin/profile" className="hidden sm:flex items-center gap-3 pl-4 border-l border-slate-200 hover:opacity-80 transition-opacity">
               <div className="h-8 w-8 rounded-full bg-red-600 flex items-center justify-center text-white font-bold uppercase overflow-hidden">
                 {user?.profile_picture_url ? (
-                  <img src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/users/profile-pictures/${user.profile_picture_url}?token=${typeof window !== 'undefined' ? localStorage.getItem('access_token') : ''}`} alt="Avatar" className="w-full h-full object-cover" />
+                  <AuthenticatedProfileImage fileKey={user.profile_picture_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   user?.full_name?.substring(0, 1) || 'A'
                 )}

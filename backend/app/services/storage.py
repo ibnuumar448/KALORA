@@ -17,10 +17,8 @@ STORAGE_SECRET_KEY = os.getenv("STORAGE_SECRET_KEY")
 
 if STORAGE_BACKEND not in {"local", "s3"}:
     raise RuntimeError("STORAGE_BACKEND must be either 'local' or 's3'.")
-if os.getenv("RENDER", "").lower() == "true" and STORAGE_BACKEND != "s3":
-    raise RuntimeError(
-        "STORAGE_BACKEND must be 's3' on Render; local uploads are not durable."
-    )
+# Local storage on Render is temporary/testing-only because its filesystem
+# is ephemeral.
 
 _s3_client = None
 if STORAGE_BACKEND == "s3":

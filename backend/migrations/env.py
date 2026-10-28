@@ -1,8 +1,12 @@
 from logging.config import fileConfig
+from pathlib import Path
+import os
+import sys
 
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
+from sqlalchemy import create_engine
 from alembic import context
 
 # this is the Alembic Config object, which provides
@@ -14,11 +18,19 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-import os
-import sys
+backend_root = Path(__file__).resolve().parents[1]
+load_dotenv(backend_root / ".env")
+
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    raise RuntimeError(
+        "DATABASE_URL is required. Set it in the environment or backend/.env."
+    )
+
+config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 # Add the backend root directory to sys.path so 'app' can be imported
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(str(backend_root))
 
 from app.core.database import Base
 import app.models # Important: imports all models through __init__.py so they register on Base
@@ -62,11 +74,10 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = create_engine(
+    database_url,
+    poolclass=pool.NullPool,
+)
 
     with connectable.connect() as connection:
         context.configure(

@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -58,10 +59,8 @@ class EmailService:
     def _send_message(
         self, message: EmailMessage | MIMEMultipart, recipient: str, email_type: str
     ) -> None:
+        params = {}
         try:
-            if not self.resend_api_key:
-                raise EmailDeliveryError("RESEND_API_KEY is required for email delivery")
-
             params = {
                 "from": "KALORA <onboarding@resend.dev>",
                 "to": [recipient],
@@ -83,15 +82,54 @@ class EmailService:
                 params["text" if content_type == "plain" else content_type] = content
 
             resend.api_key = self.resend_api_key
-            resend.Emails.send(params)
+            logger.info("RESEND_CONFIGURED: %s", bool(self.resend_api_key))
+            logger.info("EMAIL_TYPE: %s", email_type)
+            logger.info("EMAIL_RECIPIENT: %s", recipient)
+            logger.info("EMAIL_FROM: %s", params["from"])
+            logger.info("EMAIL_SUBJECT: %s", params["subject"])
+
+            if not self.resend_api_key:
+                raise EmailDeliveryError("RESEND_API_KEY is required for email delivery")
+
+            response = resend.Emails.send(params)
+            response_id = (
+                response.get("id")
+                if isinstance(response, dict)
+                else getattr(response, "id", None)
+            )
+            logger.info(
+                "RESEND_RESPONSE: type=%s id=%s", type(response).__name__, response_id
+            )
         except EmailDeliveryError:
             logger.error(
                 "Email delivery is not configured or was refused (%s)", email_type
             )
             raise
         except Exception as exc:
+            error_message = str(exc)
+            if self.resend_api_key:
+                error_message = error_message.replace(
+                    self.resend_api_key, "[REDACTED]"
+                )
+            for content_type in ("text", "html"):
+                content = params.get(content_type)
+                if content:
+                    error_message = error_message.replace(content, "[REDACTED]")
+            error_message = re.sub(
+                r"(?i)(authorization[\"']?\s*[:=]\s*[\"']?)(?:bearer\s+|basic\s+)?[^\"'\s,}]+[\"']?",
+                r"\1[REDACTED]",
+                error_message,
+            )
+            error_message = re.sub(
+                r"(?i)((?:api[_ -]?key|token|password)[\"']?\s*[:=]\s*[\"']?)[^\"'\s,}]+[\"']?",
+                r"\1[REDACTED]",
+                error_message,
+            )
             logger.error(
-                "Failed to send %s email (%s)", email_type, type(exc).__name__
+                "Failed to send %s email (%s): %s",
+                email_type,
+                type(exc).__name__,
+                error_message,
             )
             raise EmailDeliveryError(
                 f"Unable to send {email_type} email"

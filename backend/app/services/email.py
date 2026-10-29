@@ -1,12 +1,12 @@
 import logging
 import os
-import smtplib
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import parseaddr
 from html import escape
 from urllib.parse import urlencode, urlsplit
+
+import resend
 
 logger = logging.getLogger(__name__)
 
@@ -17,53 +17,8 @@ class EmailDeliveryError(Exception):
 
 class EmailService:
     def __init__(self):
-        self.mail_server = os.getenv("MAIL_SERVER", "").strip()
-        self.mail_port = os.getenv("MAIL_PORT", "587").strip()
-        self.mail_username = os.getenv("MAIL_USERNAME", "")
-        self.mail_password = os.getenv("MAIL_PASSWORD", "")
-        self.mail_sender = os.getenv("MAIL_DEFAULT_SENDER", "").strip()
-        self.mail_use_ssl = os.getenv("MAIL_USE_SSL", "false").strip().lower()
+        self.resend_api_key = os.getenv("RESEND_API_KEY", "").strip()
         self.frontend_url = os.getenv("FRONTEND_URL", "").rstrip("/")
-
-    def _get_smtp_settings(self) -> tuple[str, int, bool, str, str, str]:
-        if not self.mail_server:
-            raise EmailDeliveryError("MAIL_SERVER is required for email delivery")
-        if not self.mail_username or not self.mail_password:
-            raise EmailDeliveryError(
-                "MAIL_USERNAME and MAIL_PASSWORD are required for email delivery"
-            )
-        if not self.mail_sender:
-            raise EmailDeliveryError(
-                "MAIL_DEFAULT_SENDER is required for email delivery"
-            )
-
-        try:
-            port = int(self.mail_port)
-        except ValueError as exc:
-            raise EmailDeliveryError("MAIL_PORT must be an integer") from exc
-        if not 1 <= port <= 65535:
-            raise EmailDeliveryError("MAIL_PORT must be between 1 and 65535")
-        if self.mail_use_ssl not in {"true", "false"}:
-            raise EmailDeliveryError("MAIL_USE_SSL must be 'true' or 'false'")
-
-        _, sender_address = parseaddr(self.mail_sender)
-        if (
-            not sender_address
-            or "@" not in sender_address
-            or any(char.isspace() for char in sender_address)
-        ):
-            raise EmailDeliveryError(
-                "MAIL_DEFAULT_SENDER must be a valid email address"
-            )
-
-        return (
-            self.mail_server,
-            port,
-            self.mail_use_ssl == "true",
-            self.mail_username,
-            self.mail_password,
-            sender_address,
-        )
 
     def _get_frontend_url(self) -> str:
         try:
@@ -104,27 +59,31 @@ class EmailService:
         self, message: EmailMessage | MIMEMultipart, recipient: str, email_type: str
     ) -> None:
         try:
-            host, port, use_ssl, username, password, sender = (
-                self._get_smtp_settings()
-            )
-            message["From"] = self.mail_sender
-            if use_ssl:
-                with smtplib.SMTP_SSL(host, port, timeout=15) as server:
-                    server.login(username, password)
-                    refused_recipients = server.send_message(
-                        message, from_addr=sender, to_addrs=[recipient]
-                    )
-            else:
-                with smtplib.SMTP(host, port, timeout=15) as server:
-                    server.ehlo()
-                    server.starttls()
-                    server.ehlo()
-                    server.login(username, password)
-                    refused_recipients = server.send_message(
-                        message, from_addr=sender, to_addrs=[recipient]
-                    )
-            if refused_recipients:
-                raise EmailDeliveryError("SMTP server refused the recipient")
+            if not self.resend_api_key:
+                raise EmailDeliveryError("RESEND_API_KEY is required for email delivery")
+
+            params = {
+                "from": "KALORA <onboarding@resend.dev>",
+                "to": [recipient],
+                "subject": message["Subject"],
+            }
+            reply_to = message.get("Reply-To")
+            if reply_to:
+                params["reply_to"] = reply_to
+
+            payload = message.get_payload()
+            parts = payload if isinstance(payload, list) else [message]
+            for part in parts:
+                content = part.get_payload(decode=True)
+                if content is None:
+                    content = part.get_payload()
+                if isinstance(content, bytes):
+                    content = content.decode(part.get_content_charset() or "utf-8")
+                content_type = part.get_content_subtype()
+                params["text" if content_type == "plain" else content_type] = content
+
+            resend.api_key = self.resend_api_key
+            resend.Emails.send(params)
         except EmailDeliveryError:
             logger.error(
                 "Email delivery is not configured or was refused (%s)", email_type

@@ -32,6 +32,7 @@ python-dotenv==1.2.3
 python-multipart==0.0.32
 PyYAML==6.0.3
 requests==2.34.2
+resend==2.50.0
 s3transfer==0.19.3
 six==1.17.0
 SQLAlchemy==2.0.52
